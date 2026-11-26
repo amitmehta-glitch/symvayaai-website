@@ -1,7 +1,7 @@
 /* POST /api/submit: receive one questionnaire response, file it under the company email domain,
    and email the respondent a copy of their own answers if they asked for one. */
 import { getStore } from '@netlify/blobs';
-import { json, sha, cleanResponse, workDomain, summaryEmail, sendMail } from './lib/common.mjs';
+import { json, sha, env, cleanResponse, workDomain, summaryEmail, sendMail } from './lib/common.mjs';
 
 const MAX_BODY = 200 * 1024, PER_IP_HOUR = 30, MAILS_PER_DAY = 3;
 
@@ -39,6 +39,16 @@ export default async (req, context) => {
     if (await bump(limits, `mail/${person}/${day}`, MAILS_PER_DAY)) {
       const r = await sendMail(p.respondent.email, summaryEmail(p)); emailed = r.ok; if (!r.ok) emailNote = r.reason;
     } else emailNote = 'daily email limit reached';
+  }
+  /* tell the team a response arrived: who and which organisation, never the answers */
+  const notify = env('NOTIFY_TO');
+  if (notify) {
+    const usual = Object.keys(o.names).sort((x, y) => o.names[y] - o.names[x])[0] || org;
+    const n = Object.keys(o.people).length, team = new URL('/team/', req.url).href, e = (t) => String(t || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const who = `${p.respondent.name}${p.respondent.roleName ? ', ' + p.respondent.roleName : ''}${p.respondent.seniorityName ? ' (' + p.respondent.seniorityName + ')' : ''}`;
+    try { await sendMail(notify, { subject: `New readiness response: ${usual} (${n} so far)`,
+      html: `<p style="font:14px Arial,sans-serif">${e(who)} from <b>${e(usual)}</b> (${e(domain)}) has completed the AI readiness assessment. ${n} response${n === 1 ? '' : 's'} from this organisation so far.</p><p style="font:14px Arial,sans-serif"><a href="${e(team)}">Open the team page</a> to see responses and build the report.</p>`,
+      text: `${who} from ${usual} (${domain}) has completed the AI readiness assessment. ${n} response${n === 1 ? '' : 's'} from this organisation so far.\nTeam page: ${team}` }); } catch (err) { /* the response is stored; a missed notification is not an error */ }
   }
   return json(200, { ok: true, emailed, emailNote });
 };

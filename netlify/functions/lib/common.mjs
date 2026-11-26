@@ -59,7 +59,7 @@ export function summaryEmail(p) {
     return `<tr><td style="${td}width:48%">${esc(q.q)}</td><td style="${td}">${a.dk ? '<i>Don’t know</i>' : a.l ? `<b>${a.l}</b> · ${esc(q.o[a.l - 1])}` : '<i>Not answered</i>'}</td></tr>`; }).join('')).join('');
   const outs = NAV.outcomeQs.map(x => { const o = p.outcomes[x.id]; return `<tr><td style="${td}width:48%">${esc(x.q)}</td><td style="${td}">${!o ? '<i>Not answered</i>' : o.dk ? '<i>Don’t know</i>' : esc(x.o[o.v])}</td></tr>`; }).join('');
   const view = !answered ? 'You did not rate any capabilities.' : stuck ? `In your view, AI work at ${esc(r.org || 'your organisation')} gets stuck at <b>Stage ${stuck.g.id.slice(1)}, ${esc(stuck.g.name.replace(/^Stage \d · /, ''))}</b>: the first stage where your answers average below 3 or include a 1.` : 'In your view, AI work does not get stuck at any of the six stages: each averages 3 or more in your answers.';
-  const contact = env('DATA_CONTACT', 'amitmehta@symvayaai.com');
+  const contact = env('DATA_CONTACT', 'rupesh.sreedharan@121connects.in');
   const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#F4F6F8;font-family:Arial,Helvetica,sans-serif;color:#1C2B39">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:16px 8px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff;border-radius:8px;overflow:hidden">
