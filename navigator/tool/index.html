@@ -1751,6 +1751,11 @@ NAV.patternPlain = {
   goal: 'Optimisation: scheduling, pricing, routing',
   auto: 'Autonomous agents that act without a person'
 };
+/* Personal email services: a work address is needed so colleagues' answers can be grouped by organisation */
+NAV.freeMail = ['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com', 'hotmail.com', 'hotmail.co.in', 'outlook.com', 'outlook.in', 'live.com', 'live.in', 'msn.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'rediffmail.com', 'rediff.com', 'proton.me', 'protonmail.com', 'pm.me', 'zoho.com', 'zohomail.com', 'zohomail.in', 'gmx.com', 'gmx.net', 'mail.com', 'yandex.com', 'yandex.ru', 'tutanota.com', 'tuta.io', 'fastmail.com', 'hey.com', 'inbox.com', 'qq.com', '163.com'];
+NAV.emailDomain = (e) => { const m = String(e || '').trim().toLowerCase().match(/^[^\s@]+@([a-z0-9.-]+\.[a-z]{2,})$/); return m ? m[1] : ''; };
+NAV.workDomain = (e) => { const d = NAV.emailDomain(e); return d && !NAV.freeMail.includes(d) ? d : ''; };
+NAV.workEmailIssue = (e) => { const v = String(e || '').trim(); if (!v) return 'Enter your work email.'; const d = NAV.emailDomain(v); if (!d) return 'Check your email address: it should look like name@company.com.'; if (NAV.freeMail.includes(d)) return 'Please use your work email, not a personal one, so your answers are grouped with your colleagues’.'; return ''; };
 NAV.sure = [{ id: 'assumed', t: 'Best guess' }, { id: 'partial', t: 'Some evidence' }, { id: 'proven', t: 'Can show evidence' }];
 NAV.qIntro = {
   P1: 'How AI work is chosen and funded.',
@@ -3271,7 +3276,7 @@ BASE.hero = function (welcome) {
       <p class="why">${ar ? esc(ar.d) : A.scored ? `Score at least 12 of the ${A.total} capabilities to see the profile. ${A.scored} scored so far.` : 'Score the 28 capabilities with the customer, or send the questionnaire to their leaders and import the answers.'}</p>
       ${ar ? `<p class="why" style="margin-top:8px"><b style="color:var(--brass-hi)">First move:</b> ${esc(ar.move)}</p>` : ''}
       ${welcome ? '' : A.scored ? `<div class="row" style="margin-top:16px"><button class="btn pri" data-act="tab" data-tool="base" data-v="assess">${A.scored < A.total ? 'Continue the assessment' : 'Review scores'}</button><button class="btn" data-act="tab" data-tool="base" data-v="roadmap">See the roadmap</button></div>` : `<div class="row" style="margin-top:16px"><button class="btn pri" data-act="tab" data-tool="base" data-v="assess">Score the capabilities</button><button class="btn" data-act="tab" data-tool="base" data-v="responses">Send the questionnaire</button></div>`}</div>
-    <div class="divide">${Chart.gauge(A.index, null).replace('Evidence-weighted readiness / 100', 'Journey readiness / 100')}<p class="small muted" style="text-align:center;margin-top:4px">Average maturity, capped one level above the weakest stage. Evidence-weighted: ${A.ewIndex == null ? '—' : Math.round(A.ewIndex)}.</p></div>
+    <div class="divide">${Chart.gauge(A.index, null).replace('Evidence-weighted readiness / 100', 'AI readiness score / 100')}<p class="small muted" style="text-align:center;margin-top:4px">Average maturity, capped one level above the weakest stage. Evidence-weighted: ${A.ewIndex == null ? '—' : Math.round(A.ewIndex)}.</p></div>
     <div class="divide stack" style="gap:14px">
       <div class="readout"><span class="big">${reachTxt}</span><span class="lbl">A stage is reliable when it averages about level 3, with nothing below level 2</span></div>
       <div class="readout"><span class="big" style="font-size:22px">${!A.scored && !b.ambitionSet ? 'Target not set yet' : 'Target: through Stage ' + A.targetReach}</span><span class="lbl">${!A.scored && !b.ambitionSet ? 'Choose the ambition in ' + BASE.stepNo('ambition').toLowerCase() : `Ambition “${esc(amb.name)}”${b.patterns.length ? ' + ' + b.patterns.length + ' AI use-case categor' + (b.patterns.length > 1 ? 'ies' : 'y') : ''}`}</span></div>
@@ -3282,7 +3287,7 @@ BASE.hero = function (welcome) {
 BASE.rail = function () {
   const b = BASE.b(), A = assessBaseline(b);
   return `<div class="instrument stack" style="gap:8px;padding:18px 20px"><span class="eyebrow">Baseline so far</span>
-    ${Chart.gauge(A.index, null).replace('Evidence-weighted readiness / 100', 'Journey readiness / 100')}
+    ${Chart.gauge(A.index, null).replace('Evidence-weighted readiness / 100', 'AI readiness score / 100')}
     <div class="kv small"><span class="muted">Profile</span><span class="n">${A.arche ? esc(A.arche.name) : '—'}</span><span class="muted">Reliable through</span><span class="n">${A.reach ? 'Stage ' + A.reach : '—'}</span><span class="muted">Scored</span><span class="n">${A.scored} / ${A.total}</span><span class="muted">Gaps to target</span><span class="n">${A.gapCount}</span></div></div>
     <div class="card tight stack" style="gap:10px">${NAV.bgroups.map(g => { const G = A.groups[g.id]; const gap = G.cur == null ? null : G.tgt - G.cur; return `<button type="button" class="grouprow ${App.bGroup === g.id ? 'on' : ''}" data-act="bGroup" data-g="${g.id}"><span>${g.id === 'F' ? 'Foundations' : 'Stage ' + g.id.slice(1) + ' · ' + g.short}</span><span class="n">${BASE.lvl(G.cur)} → ${G.tgt.toFixed(1)}</span>${UI.bar(G.cur == null ? 0 : (G.cur - 1) / 4, gap == null ? '' : gap <= 0.25 ? 'green' : gap <= 1 ? 'amber' : 'red')}</button>`; }).join('')}</div>`;
 };
@@ -3352,13 +3357,12 @@ BASE.views.assess = function () {
       <div class="stack" style="gap:10px">
         <div><div class="small muted" style="font-weight:600;margin-bottom:5px">Today</div><div class="lvlseg" role="group" aria-label="Current maturity">${lv.map(v => `<button type="button" class="${st.c === v ? 'on' : ''}" data-act="bScore" data-id="${cap.id}" data-f="c" data-v="${v}" aria-pressed="${st.c === v}" title="${NAV.levels[v - 1].name}: ${NAV.levels[v - 1].d}"><b>${v}</b><span>${NAV.levels[v - 1].name}</span></button>`).join('')}</div></div>
         <div><div class="small muted" style="font-weight:600;margin-bottom:5px">Target ${T.manual ? '(set by hand)' : `(from ambition${T.raisedBy.length ? ' + ' + T.raisedBy.map(p => NAV.patternById(p).name).join(', ') : ''})`}</div><div class="lvlseg tgt" role="group" aria-label="Target maturity">${lv.map(v => `<button type="button" class="${T.t === v ? 'on' : ''}" data-act="bScore" data-id="${cap.id}" data-f="t" data-v="${v}" aria-pressed="${T.t === v}"><b>${v}</b></button>`).join('')}</div></div>
-        <div class="row small"><span class="muted">Evidence</span>${UI.seg('bEv', `data-id="${cap.id}"`, NAV.evidence.map(e => [e.id, e.label]), st.ev).replace(/class="(\w+) /g, 'class="plain $1 ')}</div>
-        ${UI.txt(`@b.capnote.${cap.id}`, st.note, 'Evidence, examples, owner…', 2)}
+        ${UI.txt(`@b.capnote.${cap.id}`, st.note, 'Examples, owner…', 2)}
       </div></div></div>`;
   }).join('');
   App.liveMap.brail = BASE.rail;
   const ix = NAV.bgroups.findIndex(x => x.id === gid);
-  return `<div class="stack"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('assess')}</span><h2>Where are you today?</h2><p>Score each capability 1–5 against the anchors: what is true for most AI work today, not the best project. Then say how strong the evidence is.</p></div></div>
+  return `<div class="stack"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('assess')}</span><h2>Where are you today?</h2><p>Score each capability 1–5 against the anchors: what is true for most AI work today, not the best project.</p></div></div>
     <div class="row" style="gap:6px;margin-bottom:6px">${NAV.bgroups.map(x => { const n = NAV.bcaps.filter(c => c.g === x.id && b.caps[c.id].c != null).length; return `<button class="btn ${x.id === gid ? 'pri' : ''}" data-act="bGroup" data-g="${x.id}">${x.id === 'F' ? 'Foundations' : 'Stage ' + x.id.slice(1) + ' · ' + x.short} <span class="small" style="opacity:.75;margin-left:4px">${n}/4</span></button>`; }).join('')}</div>
     <div class="layout"><div class="stack"><div class="callout info"><b>${esc(g.name)}.</b> ${esc(g.q)}</div>${rows}
       <div class="row" style="justify-content:space-between">${ix > 0 ? `<button class="btn" data-act="bGroup" data-g="${NAV.bgroups[ix - 1].id}">Previous: ${esc(NAV.bgroups[ix - 1].short)}</button>` : '<span></span>'}${ix < NAV.bgroups.length - 1 ? `<button class="btn pri" data-act="bGroup" data-g="${NAV.bgroups[ix + 1].id}">Next: ${esc(NAV.bgroups[ix + 1].short)}</button>` : '<button class="btn pri" data-act="tab" data-tool="base" data-v="gaps">See the gap map</button>'}</div></div>
@@ -3371,7 +3375,7 @@ BASE.views.gaps = function () {
   return `<div class="stack" style="gap:20px"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('gaps')}</span><h2>Gap map</h2><p>Every capability, today against target. Red means two or more levels to climb. ▲ marks a target raised by a planned AI use-case category. Select a cell to rescore it.</p></div></div>
     ${A.scored ? '' : `<div class="callout info row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><span>Nothing scored yet, so every cell is grey. Score the capabilities, or combine questionnaire responses, and the gaps appear here.</span><button class="btn sm pri" data-act="tab" data-tool="base" data-v="assess">Score the capabilities</button></div>`}
     <div class="card">${heat}<div class="legend" style="margin-top:12px"><span><i style="background:var(--green-soft);border:1px solid var(--green)"></i>At target</span><span><i style="background:var(--amber-soft);border:1px solid var(--amber)"></i>1 level below</span><span><i style="background:var(--red-soft);border:1px solid var(--red)"></i>2+ levels below</span><span><i style="background:var(--unset-soft);border:1px solid var(--line-2)"></i>Not scored</span></div></div>
-    <div class="grid2"><div class="card"><h3>By stage</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>Stage</th><th class="n">Today</th><th class="n">Evidence-weighted</th><th class="n">Target</th><th class="n">Gap</th></tr></thead><tbody>${NAV.bgroups.map(g => { const G = A.groups[g.id]; const gap = G.cur == null ? null : G.tgt - G.cur; return `<tr><td>${esc(g.name)}${A.stall && g.id === 'P' + A.stall ? ' <span class="pill red">Stall point</span>' : ''}</td><td class="n">${BASE.lvl(G.cur)}</td><td class="n">${BASE.lvl(G.ew)}</td><td class="n">${G.tgt.toFixed(1)}</td><td class="n">${gap == null ? '—' : Math.max(0, gap).toFixed(1)}</td></tr>`; }).join('')}</tbody></table></div></div>
+    <div class="grid2"><div class="card"><h3>By stage</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>Stage</th><th class="n">Today</th><th class="n">Target</th><th class="n">Gap</th></tr></thead><tbody>${NAV.bgroups.map(g => { const G = A.groups[g.id]; const gap = G.cur == null ? null : G.tgt - G.cur; return `<tr><td>${esc(g.name)}${A.stall && g.id === 'P' + A.stall ? ' <span class="pill red">Stall point</span>' : ''}</td><td class="n">${BASE.lvl(G.cur)}</td><td class="n">${G.tgt.toFixed(1)}</td><td class="n">${gap == null ? '—' : Math.max(0, gap).toFixed(1)}</td></tr>`; }).join('')}</tbody></table></div></div>
       <div class="card"><h3>Priority order</h3><p class="small muted">Gap × upstream weight (Stage 1 ×1.3 → Stages 4–5 ×1.0). Fixing an early stage unblocks every later one.</p><div class="tbl-wrap"><table class="t"><thead><tr><th>#</th><th>Capability</th><th class="n">Gap</th><th class="n">Priority</th></tr></thead><tbody>${A.pri.slice(0, 10).map((x, i) => `<tr><td class="n">${i + 1}</td><td>${esc(x.cap.n)} <span class="tiny muted">${x.cap.id}</span></td><td class="n">${x.gap}</td><td class="n">${x.pr.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div></div>
   </div>`;
 };
@@ -3386,7 +3390,7 @@ BASE.views.roadmap = function () {
   const b = BASE.b(), A = assessBaseline(b);
   const col = (title, sub, items) => `<div class="rcol"><div class="rhead"><h3>${title}</h3><span class="small muted">${sub}</span></div>${items.length ? items.map(x => BASE.roadCard(x, A)).join('') : '<p class="small muted">Nothing here.</p>'}</div>`;
   return `<div class="stack" style="gap:20px"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('roadmap')}</span><h2>Roadmap to the target</h2><p>Gaps sequenced upstream-first. “Now” holds the stall-point stage plus any earlier capability or foundation two or more levels short. Each card describes the next level to reach.</p></div><div class="row"><button class="btn" data-act="bSnap">Save snapshot</button>${A.scored ? '<button class="btn pri" data-act="baseToUseCase">Start a use case from this baseline</button>' : ''}</div></div>
-    ${!A.scored ? `<div class="callout info row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><span>The roadmap fills in from the gaps between today’s scores and the target. Score the capabilities, or combine questionnaire responses, to build it.</span><span class="row" style="gap:8px"><button class="btn sm pri" data-act="tab" data-tool="base" data-v="assess">Score the capabilities</button><button class="btn sm" data-act="tab" data-tool="base" data-v="responses">Use questionnaire responses</button></span></div>` : !(A.road.now.length + A.road.next.length + A.road.later.length) ? '<div class="callout info">No gaps to the target: every scored capability is at or above it. Raise the ambition to plan the next step.</div>' : `${((all) => { const n = all.filter(x => x.st.ev === 'assumed').length; return n ? `<p class="small muted" style="margin:0">${n} of the ${all.length} scores below are best guesses rather than evidenced. Check them with the owners before committing budget.</p>` : ''; })(A.road.now.concat(A.road.next, A.road.later))}<div class="roadmap">${col('Now', '0–3 months', A.road.now)}${col('Next', '3–9 months', A.road.next)}${col('Later', '9–18 months', A.road.later)}</div>`}
+    ${!A.scored ? `<div class="callout info row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><span>The roadmap fills in from the gaps between today’s scores and the target. Score the capabilities, or combine questionnaire responses, to build it.</span><span class="row" style="gap:8px"><button class="btn sm pri" data-act="tab" data-tool="base" data-v="assess">Score the capabilities</button><button class="btn sm" data-act="tab" data-tool="base" data-v="responses">Use questionnaire responses</button></span></div>` : !(A.road.now.length + A.road.next.length + A.road.later.length) ? '<div class="callout info">No gaps to the target: every scored capability is at or above it. Raise the ambition to plan the next step.</div>' : `<div class="roadmap">${col('Now', '0–3 months', A.road.now)}${col('Next', '3–9 months', A.road.next)}${col('Later', '9–18 months', A.road.later)}</div>`}
     <div class="callout small">Re-assess every 6–12 months. Save a snapshot today and the journey ladder will show your progress against it next time.</div></div>`;
 };
 
@@ -3394,10 +3398,10 @@ BASE.reportHTML = function (b) {
   const A = assessBaseline(b); const amb = NAV.ambitions.find(a => a.id === b.ambition);
   return `<div class="stack" style="gap:18px">
     <div><span class="eyebrow">Enterprise AI Navigator · AI readiness baseline</span><h2>${esc(b.meta.org || 'Organisation')}</h2><p class="muted">${esc(b.meta.scope)} · ${esc(b.meta.date)}${b.meta.assessor ? ' · assessed by ' + esc(b.meta.assessor) : ''} · ambition: ${esc(amb.name)}${b.patterns.length ? ' · patterns: ' + b.patterns.map(p => esc(NAV.patternById(p).name)).join(', ') : ''}</p></div>
-    <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">${UI.kpi('Journey readiness', A.index == null ? '—' : Math.round(A.index) + ' / 100')}${UI.kpi('Reliable through', A.reach ? 'Stage ' + A.reach : 'Not yet')}${UI.kpi('Target reach', 'Stage ' + A.targetReach)}${UI.kpi('Gaps to close', A.gapCount + ' (' + A.gapSum + ' levels)')}</div>
+    <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">${UI.kpi('AI readiness score', A.index == null ? '—' : Math.round(A.index) + ' / 100')}${UI.kpi('Reliable through', A.reach ? 'Stage ' + A.reach : 'Not yet')}${UI.kpi('Target reach', 'Stage ' + A.targetReach)}${UI.kpi('Gaps to close', A.gapCount + ' (' + A.gapSum + ' levels)')}</div>
     ${A.arche ? `<div class="callout"><b>Profile: ${esc(A.arche.name)}.</b> ${esc(A.arche.d)} <b>First move:</b> ${esc(A.arche.move)}</div>` : ''}
     <div class="card">${Chart.ladder(b, A)}${BASE.legend()}</div>
-    <div class="card"><h3>Capability scores</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>Capability</th><th>Stage</th><th class="n">Today</th><th class="n">Target</th><th>Evidence</th><th>Notes</th></tr></thead><tbody>${A.caps.map(x => `<tr><td>${esc(x.cap.n)}</td><td class="small">${x.cap.g === 'F' ? 'Foundations' : 'Stage ' + x.cap.g.slice(1)}</td><td class="n">${x.cur == null ? '—' : x.cur}</td><td class="n">${x.t}</td><td class="small">${esc((NAV.evidence.find(e => e.id === x.st.ev) || {}).label || '')}</td><td class="small">${esc(x.st.note || '')}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><h3>Capability scores</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>Capability</th><th>Stage</th><th class="n">Today</th><th class="n">Target</th><th>Notes</th></tr></thead><tbody>${A.caps.map(x => `<tr><td>${esc(x.cap.n)}</td><td class="small">${x.cap.g === 'F' ? 'Foundations' : 'Stage ' + x.cap.g.slice(1)}</td><td class="n">${x.cur == null ? '—' : x.cur}</td><td class="n">${x.t}</td><td class="small">${esc(x.st.note || '')}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="card"><h3>Roadmap</h3><div class="roadmap">${[['Now · 0–3 months', A.road.now], ['Next · 3–9 months', A.road.next], ['Later · 9–18 months', A.road.later]].map(([t, it]) => `<div class="rcol"><div class="rhead"><h3>${t}</h3></div>${it.map(x => BASE.roadCard(x, A)).join('') || '<p class="small muted">—</p>'}</div>`).join('')}</div></div>
     ${KEY.appendix('base')}
     <p class="tiny muted">The capability model, maturity anchors, journey readiness, archetypes and roadmap logic are Enterprise AI Navigator methods. Enterprise AI Navigator is independent. It is not affiliated with, endorsed by or licensed from Project Management Institute, Inc. (PMI) and contains no PMI course content. Its six-stage AI lifecycle follows the CRISP-DM tradition that the PMI-CPMAI™ methodology also builds on. “PMI-CPMAI” is a mark of Project Management Institute, Inc.</p></div>`;
@@ -3434,7 +3438,7 @@ BASE.peer = (b, A) => { const ui = App.ui || {}; const pk = BENCH.pick(b, ui.pee
   const myAlign = b.combined && b.combined.n > 1 ? NAV.bcaps.filter(c => b.combined.spread[c.id] >= 2).length / 28 : null;
   return { ...pk, pct, stages, myAlign }; };
 BASE.peerSentence = (b, A) => { const P = BASE.peer(b, A); if (!P || P.pct == null) return null; const behind = P.stages.filter(x => x.pos === 'Behind').map(x => x.gr.short); const ahead = P.stages.filter(x => x.pos === 'Ahead').map(x => x.gr.short);
-  return `Journey readiness of ${Math.round(A.index)} puts the organisation ahead of about ${P.pct}% of ${P.g.n} organisations in ${P.g.key === 'all' ? 'the benchmark' : 'its peer group (' + P.g.label + (P.g.status === 'firm' ? '' : ', ' + P.g.status) + ')'}.${behind.length ? ` It sits below the middle half of peers in ${BASE.andList(behind)}.` : ''}${ahead.length ? ` It is ahead of most peers in ${BASE.andList(ahead)}.` : ''}`; };
+  return `AI readiness score of ${Math.round(A.index)} puts the organisation ahead of about ${P.pct}% of ${P.g.n} organisations in ${P.g.key === 'all' ? 'the benchmark' : 'its peer group (' + P.g.label + (P.g.status === 'firm' ? '' : ', ' + P.g.status) + ')'}.${behind.length ? ` It sits below the middle half of peers in ${BASE.andList(behind)}.` : ''}${ahead.length ? ` It is ahead of most peers in ${BASE.andList(ahead)}.` : ''}`; };
 BASE.peerHTML = function (b, A, report) {
   const P = BASE.peer(b, A);
   if (!P) return report ? '' : `<div class="card stack" id="demo-peer"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3>Your position against India peers</h3><p class="small muted" style="margin-top:4px">The Enterprise AI Navigator India benchmark is being collected. Once it is published, this section shows where you stand against organisations in your industry group and size band.</p></div></div></div>`;
@@ -3442,7 +3446,7 @@ BASE.peerHTML = function (b, A, report) {
   const rows = P.stages.map(x => !x.s ? '' : `<tr><td>${esc(x.gr.name)}</td><td class="n">${x.cur == null ? '—' : x.cur.toFixed(1)}</td><td style="width:38%"><div class="pband" role="img" aria-label="${esc(`Peers middle half ${x.s.p25.toFixed(1)} to ${x.s.p75.toFixed(1)}, median ${x.s.med.toFixed(1)}${x.cur == null ? '' : ', you ' + x.cur.toFixed(1)}`)}"><i style="left:${x5(x.s.p25)};width:calc(${x5(x.s.p75)} - ${x5(x.s.p25)})"></i><b style="left:${x5(x.s.med)}"></b>${x.cur == null ? '' : `<em style="left:${x5(Math.min(5, Math.max(1, x.cur)))}"></em>`}</div></td><td class="n">${x.s.med.toFixed(1)}</td><td>${x.pos ? `<span class="pill ${x.pos === 'Ahead' ? 'green' : x.pos === 'Behind' ? 'red' : ''}">${x.pos}</span>` : '—'}</td></tr>`).join('');
   const reach = [1, 2, 3, 4, 5, 6].map(k => `<td class="n">${g.reach[k] != null ? Math.round(g.reach[k] * 100) + '%' : '—'}${A.reach >= k ? ' ✓' : ''}</td>`).join('');
   return `<div class="card stack" id="demo-peer"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3>Your position against India peers</h3>
-      <p style="margin-top:6px">${P.pct == null ? 'Score at least 12 capabilities to see your percentile.' : `Journey readiness ${Math.round(A.index)}: <b>ahead of about ${P.pct}% of ${g.n} organisations</b> ${g.key === 'all' ? 'in the benchmark' : 'in ' + esc(g.label)}.`} ${B.demo ? '<span class="pill amber">Illustrative demo data, not real organisations</span> ' : ''}<span class="pill">${esc(g.status === 'firm' ? '30+ organisations' : g.status === 'directional' ? 'Directional: 10–29 organisations' : 'Indicative: 5–9 organisations')}</span></p></div>
+      <p style="margin-top:6px">${P.pct == null ? 'Score at least 12 capabilities to see your percentile.' : `AI readiness score ${Math.round(A.index)}: <b>ahead of about ${P.pct}% of ${g.n} organisations</b> ${g.key === 'all' ? 'in the benchmark' : 'in ' + esc(g.label)}.`} ${B.demo ? '<span class="pill amber">Illustrative demo data, not real organisations</span> ' : ''}<span class="pill">${esc(g.status === 'firm' ? '30+ organisations' : g.status === 'directional' ? 'Directional: 10–29 organisations' : 'Indicative: 5–9 organisations')}</span></p></div>
       ${report ? '' : `<div class="row" style="gap:8px;flex-wrap:wrap">${P.avail.length > 1 ? `<label class="f" style="min-width:230px"><span>Compare with</span><select data-act-sel="peerGrp" id="peerGrpSel">${P.avail.map(a => `<option value="${esc(a.key)}" ${a.key === g.key ? 'selected' : ''}>${esc(a.label)} (${a.n})</option>`).join('')}</select></label>` : ''}</div>`}</div>
     <div class="tbl-wrap"><table class="t"><thead><tr><th>Stage</th><th class="n">You</th><th>Peers: middle half, median and you</th><th class="n">Peer median</th><th>Position</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="legend small"><span><i style="background:rgba(30,90,130,.22)"></i>Middle half of peers</span><span><i style="background:var(--ink,#13202d);width:3px"></i>Peer median</span><span><i style="background:var(--brass);border-radius:50%"></i>You</span></div>
@@ -3520,6 +3524,8 @@ BASE.addResponses = function (b, list) {
 BASE.rStats = (r) => { const v = Object.values(r.answers); return { ans: v.filter(a => a.l != null).length, dk: v.filter(a => a.dk).length }; };
 BASE.medianFloor = (arr) => { const a = arr.slice().sort((x, y) => x - y); const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.floor((a[m - 1] + a[m]) / 2); };
 
+/* How far apart leaders are on one capability. With five or more answers, the most extreme fifth at each end is ignored, so one outlier does not count as disagreement. */
+BASE.spreadOf = function (lv) { if (lv.length < 2) return 0; const a = lv.slice().sort((x, y) => x - y), k = a.length >= 5 ? Math.floor(a.length * 0.2) : 0; return a[a.length - 1 - k] - a[k]; };
 BASE.combine = function (b) {
   const R = (b.responses || []).filter(r => r.include); const n = R.length; if (!n) return null;
   const evO = ['assumed', 'partial', 'proven'];
@@ -3530,7 +3536,7 @@ BASE.combine = function (b) {
     const sv = rows.filter(x => x.a.l != null).map(x => evO.indexOf(x.a.s || 'assumed'));
     const notes = rows.filter(x => x.a.n).map(x => `${NAV.roleShort[x.r.respondent.role] || 'Respondent'}: ${x.a.n}`);
     caps[c.id] = { c: lv.length ? BASE.medianFloor(lv) : null, ev: sv.length ? evO[BASE.medianFloor(sv)] : 'assumed', note: notes.join(' · ') };
-    spread[c.id] = lv.length > 1 ? Math.max(...lv) - Math.min(...lv) : 0;
+    spread[c.id] = BASE.spreadOf(lv);
     dk[c.id] = rows.filter(x => x.a.dk).length;
     per[c.id] = rows.map(x => ({ who: x.r.respondent.name, role: x.r.respondent.role, l: x.a.l, dk: !!x.a.dk }));
   });
@@ -3648,7 +3654,7 @@ BASE.findings = function (b, A) {
   const vis = !K ? 'Visibility was not tested: scores were entered by the assessor rather than collected by questionnaire.'
     : bl.length ? `${bl.length} capabilit${bl.length > 1 ? 'ies' : 'y'} drew “Don’t know” answers — led by ${bl.slice(0, 2).map(x => x.cap.n).join(' and ')}. Leaders cannot manage what they cannot see.` : 'Every respondent could answer every question — leadership visibility is good.';
   return [
-    { sec: 'Where you are', t: `${org} is ${A.reach ? 'reliable through Stage ' + A.reach : 'not yet reliable at Stage 1'} of the AI journey${A.stall ? `; AI work stalls at ${NAV.bgroups[A.stall - 1].name.replace(/^Stage \w+ · /, 'Stage ' + A.stall + ', ')}` : ''}. Profile: ${A.arche ? A.arche.name : 'incomplete'}. Journey readiness ${A.index == null ? '—' : Math.round(A.index)} / 100.` },
+    { sec: 'Where you are', t: `${org} is ${A.reach ? 'reliable through Stage ' + A.reach : 'not yet reliable at Stage 1'} of the AI journey${A.stall ? `; AI work stalls at ${NAV.bgroups[A.stall - 1].name.replace(/^Stage \w+ · /, 'Stage ' + A.stall + ', ')}` : ''}. Profile: ${A.arche ? A.arche.name : 'incomplete'}. AI readiness score ${A.index == null ? '—' : Math.round(A.index)} / 100.` },
     { sec: 'Where you want to go', t: `The ambition “${amb.name}” requires reliability through Stage ${A.targetReach}.${b.patterns.length ? ` Planned AI types (${b.patterns.map(p => NAV.patternById(p).name).join(', ')}) raise ${raised} capability target${raised === 1 ? '' : 's'} by one level.` : ''}` },
     { sec: 'Gaps by stage', t: `${A.gapCount} of 28 capabilities are below target, ${A.gapSum} levels in total.${worst ? ` The largest gap is in ${worst.g.name.replace(/^Stage \w+ · /, '')} (${worst.cur.toFixed(1)} today against ${worst.tgt.toFixed(1)}).` : ''}` },
     { sec: 'Leadership alignment', t: align },
@@ -3669,9 +3675,9 @@ BASE.reportHTML = function (b) {
   return `<div class="report stack" style="gap:30px">
     <section class="instrument rcover"><span class="eyebrow">Enterprise AI Navigator · AI readiness gap analysis</span><h1>${esc((b.meta.org || 'Organisation').replace(/^Sample: /, ''))}</h1>
       <p class="why">${esc(b.meta.scope || '')} · ${esc(b.meta.date)} · ${K ? `${K.n} respondent${K.n > 1 ? 's' : ''}` : esc(b.meta.assessor || 'assessor view')} · Ambition: ${esc(amb.name)}</p>
-      <div class="row" style="gap:34px;margin-top:16px;align-items:flex-start"><div class="readout"><span class="big">${A.index == null ? '—' : Math.round(A.index)}<span style="font-size:16px"> / 100</span></span><span class="lbl">Journey readiness</span></div><div class="readout"><span class="big">${A.reach ? 'Stage ' + A.reach : '—'}</span><span class="lbl">Reliable through today</span></div><div class="readout"><span class="big">Stage ${A.targetReach}</span><span class="lbl">Required by the ambition</span></div><div class="readout"><span class="big">${A.arche ? esc(A.arche.name) : '—'}</span><span class="lbl">Profile</span></div></div></section>
+      <div class="row" style="gap:34px;margin-top:16px;align-items:flex-start"><div class="readout"><span class="big">${A.index == null ? '—' : Math.round(A.index)}<span style="font-size:16px"> / 100</span></span><span class="lbl">AI readiness score</span></div><div class="readout"><span class="big">${A.reach ? 'Stage ' + A.reach : '—'}</span><span class="lbl">Reliable through today</span></div><div class="readout"><span class="big">Stage ${A.targetReach}</span><span class="lbl">Required by the ambition</span></div><div class="readout"><span class="big">${A.arche ? esc(A.arche.name) : '—'}</span><span class="lbl">Profile</span></div></div></section>
     ${sec(1, 'Executive summary', `<div class="exec">${F.map((f, i) => `<div class="execrow"><span class="rnum sm">${i + 2}</span><div><b>${f.sec}.</b> ${esc(f.t)}</div></div>`).join('')}</div>${A.arche ? `<div class="callout"><b>Recommended first move:</b> ${esc(A.arche.move)}</div>` : ''}`, 'One finding from each section of this report.')}
-    ${sec(2, 'Where you are on the AI journey', `<div class="card">${Chart.ladder(b, A)}${BASE.legend()}</div>${A.arche ? `<p><b>${esc(A.arche.name)}.</b> ${esc(A.arche.d)}</p>` : ''}<p class="small muted">Journey readiness is the average maturity of the six stages, capped one level above the weakest stage. A stage counts as reliable when it averages about level 3 (2.75 or more) with no capability below level 2. Evidence-weighted readiness: ${A.ewIndex == null ? '—' : Math.round(A.ewIndex)} / 100.</p>`, 'Current maturity (filled) against target (ring) for each stage.')}
+    ${sec(2, 'Where you are on the AI journey', `<div class="card">${Chart.ladder(b, A)}${BASE.legend()}</div>${A.arche ? `<p><b>${esc(A.arche.name)}.</b> ${esc(A.arche.d)}</p>` : ''}<p class="small muted">AI readiness score is the average maturity of the six stages, capped one level above the weakest stage. A stage counts as reliable when it averages about level 3 (2.75 or more) with no capability below level 2.</p>`, 'Current maturity (filled) against target (ring) for each stage.')}
     ${sec(3, 'Where you want to go', `<div class="grid2"><div class="card stack"><h3>Ambition: ${esc(amb.name)}</h3><p class="small">${esc(amb.d)}</p><p class="small">Target reach: reliable through <b>Stage ${A.targetReach}</b>.</p></div><div class="card stack"><h3>Planned AI types</h3>${b.patterns.length ? `<ul class="list small">${b.patterns.map(p => `<li><b>${esc(NAV.patternById(p).name)}</b> raises: ${NAV.patternUplift[p].map(id => esc(NAV.bcapById(id).n)).join('; ')}</li>`).join('')}</ul>` : '<p class="small muted">None selected.</p>'}</div></div>`)}
     ${sec(4, 'Gaps by stage', `<div class="card"><div class="tbl-wrap"><table class="t"><thead><tr><th>Stage</th><th class="n">Today</th><th class="n">Target</th><th class="n">Gap</th><th class="n">Capabilities below target</th></tr></thead><tbody>${NAV.bgroups.map(g => { const G = A.groups[g.id]; return `<tr><td>${esc(g.name)}${A.stall && g.id === 'P' + A.stall ? ' <span class="pill red">Stall point</span>' : ''}</td><td class="n">${BASE.lvl(G.cur)}</td><td class="n">${G.tgt.toFixed(1)}</td><td class="n">${G.cur == null ? '—' : Math.max(0, G.tgt - G.cur).toFixed(1)}</td><td class="n">${G.cs.filter(x => x.gap > 0).length} / 4</td></tr>`; }).join('')}</tbody></table></div></div>${phaseDetail}`, '▲ marks a target raised by a planned AI type.')}
     ${sec(5, 'Leadership alignment', K && K.n > 1 ? `<p>${esc(F[3].t)}</p>` + BASE.alignmentHTML(b, false, true) : `<p>${esc(F[3].t)}</p>`)}
@@ -3710,12 +3716,12 @@ const RPT = {
     const [c, x] = this.canvas(W, H), X = v => left + (v - 1) / 4 * (W - left - right);
     x.font = '30px Arial'; x.fillStyle = '#586A7B'; x.textAlign = 'center';
     for (let v = 1; v <= 5; v++) { x.strokeStyle = '#E3E8EC'; x.lineWidth = 2; x.beginPath(); x.moveTo(X(v), top - 6); x.lineTo(X(v), top + rows.length * rowH); x.stroke(); x.fillText(String(v), X(v), top + rows.length * rowH + 38); }
-    x.fillText('Maturity level, 1 (ad hoc) to 5 (optimised)', left + (W - left - right) / 2, top + rows.length * rowH + 78);
+    x.fillText('1 = ad hoc, 5 = optimised', left + (W - left - right) / 2, top + rows.length * rowH + 78);
     rows.forEach((r, i) => {
       const y = top + i * rowH + rowH / 2, cur = r.G.cur, tgt = r.G.tgt, stall = A.stall && r.g.id === 'P' + A.stall;
       x.textAlign = 'left'; x.fillStyle = '#0F2235'; x.font = (stall ? 'bold ' : '') + '36px Arial';
       x.fillText(r.g.id === 'F' ? 'Foundations' : 'Stage ' + r.g.id.slice(1) + ' · ' + r.g.short, 10, y + (stall ? -2 : 12));
-      if (stall) { x.fillStyle = '#B4413C'; x.font = 'bold 26px Arial'; x.fillText('Stall point', 10, y + 32); }
+      if (stall) { x.fillStyle = '#B4413C'; x.font = 'bold 26px Arial'; x.fillText('Work gets stuck here', 10, y + 32); }
       x.fillStyle = '#EEF2F5'; x.fillRect(X(1), y - 18, X(5) - X(1), 36);
       if (r.s) { x.fillStyle = 'rgba(30,90,130,.20)'; x.fillRect(X(r.s.p25), y - 26, X(r.s.p75) - X(r.s.p25), 52); x.fillStyle = '#5B7C93'; x.fillRect(X(r.s.med) - 2, y - 30, 4, 60); }
       if (cur != null) { x.fillStyle = '#0F2235'; x.fillRect(X(1), y - 14, Math.max(4, X(cur) - X(1)), 28); }
@@ -3725,153 +3731,350 @@ const RPT = {
     const ly = H - 30; let lx = 10; x.font = '30px Arial'; x.textAlign = 'left';
     const key = (draw, label) => { draw(lx); x.fillStyle = '#586A7B'; x.fillText(label, lx + 46, ly + 9); lx += 46 + x.measureText(label).width + 50; };
     key(p => { x.fillStyle = '#0F2235'; x.fillRect(p, ly - 10, 34, 20); }, 'Today');
-    key(p => { x.fillStyle = '#C99632'; x.beginPath(); x.moveTo(p + 17, ly - 16); x.lineTo(p + 31, ly); x.lineTo(p + 17, ly + 16); x.lineTo(p + 3, ly); x.closePath(); x.fill(); }, 'Target for your ambition');
+    key(p => { x.fillStyle = '#C99632'; x.beginPath(); x.moveTo(p + 17, ly - 16); x.lineTo(p + 31, ly); x.lineTo(p + 17, ly + 16); x.lineTo(p + 3, ly); x.closePath(); x.fill(); }, 'Target for your goal');
     if (P) key(p => { x.fillStyle = 'rgba(30,90,130,.20)'; x.fillRect(p, ly - 14, 34, 28); x.fillStyle = '#5B7C93'; x.fillRect(p + 15, ly - 16, 4, 32); }, 'Peers: middle half and median');
     return { data: this.png(c), w: W, h: H };
   },
 
+  /* ---------- more charts ---------- */
+  /* Horizontal bars with direct labels. rows: [{label, sub, v, hi}] */
+  bars(rows, opt) {
+    opt = opt || {}; const rowH = opt.rowH || 92, top = 20, left = 560, right = 190, W = 1500, max = opt.max || Math.max(1, ...rows.map(r => r.v));
+    const H = top + rows.length * rowH + (opt.note ? 60 : 16), [c, x] = this.canvas(W, H), X = v => left + v / max * (W - left - right);
+    rows.forEach((r, i) => {
+      const y = top + i * rowH + rowH / 2;
+      x.textAlign = 'left'; x.fillStyle = '#0F2235'; x.font = (r.hi ? 'bold ' : '') + '34px Arial'; x.fillText(r.label, 0, y + (r.sub ? -2 : 12));
+      if (r.sub) { x.fillStyle = r.hi ? '#B4413C' : '#586A7B'; x.font = (r.hi ? 'bold ' : '') + '26px Arial'; x.fillText(r.sub, 0, y + 32); }
+      x.fillStyle = '#EEF0F2'; x.fillRect(X(0), y - 22, X(max) - X(0), 44);
+      x.fillStyle = r.hi ? '#B4413C' : (opt.color || '#1E5A82'); x.fillRect(X(0), y - 22, Math.max(r.v > 0 ? 6 : 0, X(r.v) - X(0)), 44);
+      x.fillStyle = '#0F2235'; x.font = 'bold 34px Arial'; x.fillText(opt.fmt ? opt.fmt(r.v) : String(r.v), X(max) + 26, y + 12);
+    });
+    if (opt.note) { x.fillStyle = '#586A7B'; x.font = '26px Arial'; x.textAlign = 'left'; x.fillText(opt.note, left, H - 18); }
+    return { data: this.png(c), w: W, h: H };
+  },
+  /* Average maturity by stage for several groups of leaders. groups: [{name, n, color, v: {P1..F}}] */
+  groupBars(groups) {
+    const ids = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'F'], bh = 26, gapIn = 6, rowH = groups.length * (bh + gapIn) + 34, top = 30, left = 380, right = 120, W = 1500;
+    const H = top + ids.length * rowH + 130, [c, x] = this.canvas(W, H), X = v => left + (v - 1) / 4 * (W - left - right);
+    x.font = '26px Arial'; x.fillStyle = '#586A7B'; x.textAlign = 'center';
+    for (let v = 1; v <= 5; v++) { x.strokeStyle = '#E3E8EC'; x.lineWidth = 2; x.beginPath(); x.moveTo(X(v), top - 8); x.lineTo(X(v), top + ids.length * rowH - 20); x.stroke(); x.fillText(String(v), X(v), top + ids.length * rowH + 14); }
+    ids.forEach((id, i) => {
+      const g = NAV.bgroups.find(z => z.id === id), y0 = top + i * rowH;
+      x.textAlign = 'left'; x.fillStyle = '#0F2235'; x.font = '30px Arial'; x.fillText(id === 'F' ? 'Foundations' : 'Stage ' + id.slice(1) + ' · ' + g.short, 0, y0 + groups.length * (bh + gapIn) / 2 + 8);
+      groups.forEach((gr, k) => { const v = gr.v[id], y = y0 + k * (bh + gapIn); if (v == null) return;
+        x.fillStyle = gr.color; x.fillRect(X(1), y, Math.max(4, X(v) - X(1)), bh);
+        x.fillStyle = '#0F2235'; x.font = 'bold 24px Arial'; x.fillText(v.toFixed(1), X(v) + 10, y + bh - 4); });
+    });
+    x.textAlign = 'center'; x.fillStyle = '#586A7B'; x.font = '26px Arial'; x.fillText('1 = ad hoc, 5 = optimised', left + (W - left - right) / 2, top + ids.length * rowH + 50);
+    let lx = 0; const ly = H - 26; x.textAlign = 'left'; x.font = '28px Arial';
+    groups.forEach(gr => { x.fillStyle = gr.color; x.fillRect(lx, ly - 18, 30, 22); const t = `${gr.name} (${gr.n})`; x.fillStyle = '#33475B'; x.fillText(t, lx + 42, ly); lx += 42 + x.measureText(t).width + 50; });
+    return { data: this.png(c), w: W, h: H };
+  },
+  /* Each leader's answer on the capabilities where they disagree most. rows: [{label, pts:[{l, color}]}] */
+  dots(rows, legend) {
+    const rowH = 84, top = 20, left = 640, right = 60, W = 1500, H = top + rows.length * rowH + 150, sides = ['biz', 'tech', 'other'];
+    const [c, x] = this.canvas(W, H), X = v => left + (v - 1) / 4 * (W - left - right);
+    x.font = '26px Arial'; x.fillStyle = '#586A7B'; x.textAlign = 'center';
+    for (let v = 1; v <= 5; v++) { x.strokeStyle = '#E3E8EC'; x.lineWidth = 2; x.beginPath(); x.moveTo(X(v), top); x.lineTo(X(v), top + rows.length * rowH); x.stroke(); x.fillText(String(v), X(v), top + rows.length * rowH + 34); }
+    x.fillText('Each dot is one leader’s answer; a number shows how many gave the same answer', W / 2, top + rows.length * rowH + 72);
+    rows.forEach((r, i) => {
+      const y = top + i * rowH + rowH / 2, ls = r.pts.map(p => p.l);
+      x.textAlign = 'left'; x.fillStyle = '#0F2235'; x.font = '30px Arial'; x.fillText(this.fit(x, r.label, left - 30), 0, y + 10);
+      x.strokeStyle = '#C9D4DE'; x.lineWidth = 8; x.beginPath(); x.moveTo(X(Math.min(...ls)), y); x.lineTo(X(Math.max(...ls)), y); x.stroke();
+      for (let v = 1; v <= 5; v++) { const here = sides.map(sd => ({ sd, k: r.pts.filter(p => p.l === v && p.side === sd).length })).filter(z => z.k);
+        here.forEach((z, k) => { const cx = X(v) + (k - (here.length - 1) / 2) * 34, rad = z.k > 1 ? 19 : 15;
+          x.fillStyle = this.COL[z.sd]; x.beginPath(); x.arc(cx, y, rad, 0, Math.PI * 2); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 3; x.stroke();
+          if (z.k > 1) { x.fillStyle = z.sd === 'biz' ? '#fff' : '#0F2235'; x.font = 'bold 22px Arial'; x.textAlign = 'center'; x.fillText(String(z.k), cx, y + 8); } }); }
+    });
+    let lx = 0; const ly = H - 22; x.textAlign = 'left'; x.font = '28px Arial';
+    legend.forEach(l => { x.fillStyle = l.color; x.beginPath(); x.arc(lx + 14, ly - 9, 14, 0, Math.PI * 2); x.fill(); x.fillStyle = '#33475B'; x.fillText(l.name, lx + 38, ly); lx += 38 + x.measureText(l.name).width + 50; });
+    return { data: this.png(c), w: W, h: H };
+  },
+  /* One 100% bar per question. rows: [{label, segs:[{n, label, color}]}] */
+  stack(rows) {
+    const rowH = 150, top = 10, W = 1500, H = top + rows.length * rowH + 10, [c, x] = this.canvas(W, H);
+    rows.forEach((r, i) => {
+      const y = top + i * rowH, tot = r.segs.reduce((a, s) => a + s.n, 0) || 1; let px = 0;
+      x.textAlign = 'left'; x.fillStyle = '#0F2235'; x.font = 'bold 30px Arial'; x.fillText(r.label, 0, y + 30);
+      r.segs.forEach(s => { if (!s.n) return; const w = s.n / tot * W; x.fillStyle = s.color; x.fillRect(px, y + 46, w - 3, 52);
+        x.fillStyle = s.dark ? '#fff' : '#0F2235'; x.font = 'bold 26px Arial'; x.textAlign = 'center'; if (w > 50) x.fillText(String(s.n), px + w / 2, y + 82);
+        x.fillStyle = '#33475B'; x.font = '24px Arial'; if (w > 120) x.fillText(this.fit(x, s.label, w - 10), px + w / 2, y + 128); px += w; });
+    });
+    return { data: this.png(c), w: W, h: H };
+  },
+  fit(x, t, w) { if (x.measureText(t).width <= w) return t; while (t.length > 3 && x.measureText(t + '…').width > w) t = t.slice(0, -1); return t + '…'; },
+
+  /* ---------- insight engine: turns scores into findings ---------- */
+  STALL: {
+    1: { head: 'finds it hard to choose and fund the right AI problems', means: ['Projects start without an agreed problem, business case or sponsor, so few survive the next budget round.', 'Better data or tools will not help until problems are chosen and funded properly.', 'A list of candidate use cases, a simple business case and a go or no-go check come before any build.'] },
+    2: { head: 'can choose AI problems, but its AI work stalls when it needs the data', means: ['Use cases are approved, then wait weeks or months for data access, an owner or privacy sign-off.', 'Each project hits the same data problems again, so results take longer than they should.', 'Named data owners, a list of the key data and a standard privacy check unblock every later stage.'] },
+    3: { head: 'can find its data, but cannot yet get it ready for AI in a repeatable way', means: ['Data can be found, but each project builds its own extracts, labels and knowledge bases by hand.', 'Pilots work once and are hard to repeat or scale.', 'Shared data pipelines and well-kept knowledge sources should come before more use cases.'] },
+    4: { head: 'has data ready for AI, but lacks the people and platforms to build on it', means: ['Skills, tools or sourcing decisions slow every build.', 'Depending on a few people or one vendor makes delivery fragile.', 'A clear choice of what to build, buy or source from partners, and one standard platform, remove the bottleneck.'] },
+    5: { head: 'can build AI, but cannot yet prove it works safely or pays back', means: ['AI is judged by demos, so leaders cannot tell which pilots deserve to scale.', 'Without safety testing and a sign-off before launch, risks are being carried that nobody has decided to accept.', 'Quality targets and business goals set at the start, and a sign-off before launch, fix this.'] },
+    6: { head: 'can prove AI works, but cannot yet run and improve it once it is live', means: ['AI goes live without monitoring, support for the people using it, or tracking of its value.', 'Value fades quietly after launch, and the business loses confidence in AI.', 'Automated releases, monitoring and adoption measures for every live AI system protect the value.'] }
+  },
+  PLAIN: { P1: 'choosing and funding AI problems', P2: 'finding the data', P3: 'getting data ready for AI', P4: 'building AI solutions', P5: 'proving AI works', P6: 'running AI once it is live', F: 'the foundations' },
+  SEN: [{ name: 'CXOs', ids: [0] }, { name: 'Presidents, SVPs and VPs', ids: [1, 2] }, { name: 'AVPs, heads and managers', ids: [3, 4, 5, 6] }],
+  COL: { biz: '#0F2235', tech: '#C99632', other: '#9AABB9' },
+
+  insights(b) {
+    const A = assessBaseline(b), K = b.combined;
+    if (!A.scored) A.stall = null; /* nothing scored: no stage can be called the sticking point */
+    const full = (b.meta.org || '').replace(/^Sample: /, '').trim(), org = full && full.length <= 32 ? full : 'Your organisation', amb = NAV.ambitions.find(a => a.id === b.ambition) || NAV.ambitions[0];
+    const orgIn = org === 'Your organisation' ? 'your organisation' : org;
+    const R = K ? (b.responses || []).filter(r => r.include && Object.values(r.answers || {}).some(a => a && (a.l != null || a.dk))) : [], n = R.length;
+    const f1 = v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1);
+    const sname = id => id === 'F' ? 'the foundations' : `${this.PLAIN[id]} (Stage ${id.slice(1)})`;
+    const plural = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+    const steps = k => plural(k, 'step', 'steps');
+    const words = k => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][k] || String(k);
+    const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
+    const listAnd = a => a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+    const q = t => `‘${t}’`;
+    const base = !A.scored && !n ? 'No answers yet.' : n ? `Base: ${n} leader${n > 1 ? 's' : ''} from ${orgIn} who answered the questionnaire.` : 'Based on the assessor’s scores.';
+
+    /* 01 where AI work gets stuck */
+    const st = A.stall ? this.STALL[A.stall] : null, stallName = A.stall ? NAV.bgroups[A.stall - 1].name.replace(/^Stage \d · /, '') : '';
+    const j = { base,
+      head: !A.scored ? (n ? `${org}’s leaders could not rate any of the 28 capabilities` : `${org} has not been assessed yet`) : st ? `${org} ${st.head}` : `${org}’s AI work does not get stuck at any stage`,
+      found: A.scored ? [
+        'A stage counts as reliable when most AI projects get through it: its capabilities average about 3 out of 5, with none below 2.',
+        A.reach ? `Reliable today: Stage${A.reach > 1 ? `s 1 to ${A.reach}` : ' 1'}.` : 'No stage is reliable yet.',
+        A.stall && A.groups['P' + A.stall].cs.some(x => x.cur === 1) ? `In Stage ${A.stall}, at least one capability is at 1, the lowest level.` : null].filter(Boolean) : [n ? `All ${n > 1 ? n + ' leaders' : 'the leader who answered'} said “Don’t know” to every capability question.` : 'No answers yet.'],
+      means: !A.scored ? [n ? 'Every answer was “Don’t know”. The people closest to AI work should answer instead, or alongside.' : 'Ask the leadership team to answer the questionnaire.'] : st ? st.means : ['The priority now is depth: more use cases, measured value and stronger foundations.'],
+      take: !A.scored ? 'Collect answers from the leadership team to see where AI work gets stuck.' : A.stall ? `Fix ${sname('P' + A.stall)} first. Projects get stuck there however strong the later stages are.` : 'The basics are in place. The next gains come from scaling up and tracking value.' };
+
+    /* 02 distance to the goal */
+    const stg = NAV.bgroups.map(g => ({ g, lv: A.groups[g.id].cs.reduce((a, x) => a + (x.gap || 0), 0) })).sort((p, r) => r.lv - p.lv);
+    const top2 = stg.filter(x => x.lv > 0).slice(0, 2), spreadOut = A.gapSum >= 7 && top2.reduce((a, x) => a + x.lv, 0) / A.gapSum < 0.4;
+    const stallTop = A.stall && top2.some(x => x.g.id === 'P' + A.stall), others = top2.filter(x => x.g.id !== 'P' + A.stall);
+    const big = A.pri.filter(x => x.gap >= 2).length, raised = A.caps.filter(x => x.raisedBy.length && !x.manual && x.gap > 0).length;
+    const g2 = { base,
+      head: !A.scored ? `${org}’s goal is “${amb.name}”` : !A.gapCount ? `${org} already meets the bar for its goal, “${amb.name}”` : `To reach its goal, ${orgIn} needs to improve ${A.gapCount} of 28 capabilities, ${spreadOut ? 'spread across every stage' : 'most of all in ' + listAnd(top2.map(x => sname(x.g.id)))}`,
+      rows: NAV.bgroups.map(g => ({ label: g.id === 'F' ? 'Foundations' : 'Stage ' + g.id.slice(1) + ' · ' + g.short, sub: A.stall && g.id === 'P' + A.stall ? 'Work gets stuck here' : '', hi: A.stall && g.id === 'P' + A.stall, v: A.groups[g.id].cs.reduce((a, x) => a + (x.gap || 0), 0) })),
+      found: [`Your goal is “${amb.name}”: ${amb.d.charAt(0).toLowerCase() + amb.d.slice(1)}`,
+        big ? `Of the ${A.gapCount} gaps, ${words(big)} ${big === 1 ? 'is' : 'are'} two or more steps and need${big === 1 ? 's' : ''} a programme, not a quick fix.` : null,
+        A.pri.length ? `The largest gaps: ${listAnd(A.pri.slice(0, 3).map(x => `${q(x.cap.n)} (${x.cur} → ${x.t})`))}.` : null,
+        raised ? `${raised === 1 ? 'One target is' : `${cap1(words(raised))} targets are`} a step higher because of the kinds of AI you plan to use.` : null].filter(Boolean),
+      means: ['Gaps early in the journey hold back every stage after them, so the plan closes them first.', 'Each step on the 1 to 5 scale is a new way of working that most projects follow, not a one-off fix.'],
+      take: !A.scored ? 'Collect answers to measure the distance to the goal.' : !A.gapCount ? 'Raise the goal, or use the headroom to take more use cases live.' : spreadOut ? 'The gaps are everywhere, so sequence them: work forward from the earliest stage, one stage at a time.' : A.stall && !stallTop ? `Once ${this.PLAIN['P' + A.stall]} is fixed, plan for ${listAnd(top2.map(x => sname(x.g.id)))}: that is where most of the distance lies.` : stallTop && others.length ? `Start with ${sname('P' + A.stall)}, then ${sname(others[0].g.id)}: together they hold most of the distance to the goal.` : `Put the effort into ${listAnd(top2.map(x => sname(x.g.id)))}: that is where most of the distance to the goal lies.` };
+
+    /* 03 how different leaders see it */
+    const sideOf = r => r.respondent.role == null ? 'unknown' : NAV.roleSide(r.respondent.role) || 'other';
+    const dis = A.scored ? BASE.disagreements(b) : [], bl = BASE.blindspots(b);
+    const lv = (rs, ids) => { const v = []; rs.forEach(r => ids.forEach(id => { const a = r.answers[id]; if (a && a.l != null) v.push(a.l); })); return v.length ? v.reduce((p, x) => p + x, 0) / v.length : null; };
+    const prof = (name, rs, color) => ({ name, n: rs.length, color, all: lv(rs, NAV.bcaps.map(c => c.id)), v: Object.fromEntries(NAV.bgroups.map(g => [g.id, lv(rs, NAV.bcaps.filter(c => c.g === g.id).map(c => c.id))])) });
+    const fn = [prof('Business leaders', R.filter(r => sideOf(r) === 'biz'), this.COL.biz), prof('Technology leaders', R.filter(r => sideOf(r) === 'tech'), this.COL.tech), prof('Other functions', R.filter(r => sideOf(r) === 'other'), this.COL.other)].filter(x => x.n && x.all != null);
+    const sen = this.SEN.map(s => prof(s.name, R.filter(r => s.ids.includes(r.respondent.seniority)))).filter(x => x.n && x.all != null);
+    const bz = fn.find(x => x.name === 'Business leaders'), tc = fn.find(x => x.name === 'Technology leaders');
+    let p3 = null;
+    if (n > 1 && A.scored && (fn.length || sen.length > 1)) {
+      const found = [], means = []; let head, take;
+      if (bz && tc) {
+        const d = bz.all - tc.all, gd = NAV.bgroups.filter(g => bz.v[g.id] != null && tc.v[g.id] != null).map(g => ({ g, d: bz.v[g.id] - tc.v[g.id] })).sort((p, r) => Math.abs(r.d) - Math.abs(p.d))[0];
+        found.push(`Business leaders average ${f1(bz.all)} out of 5; technology leaders average ${f1(tc.all)}.`);
+        if (Math.abs(d) >= 0.35) {
+          head = `${d > 0 ? 'Business' : 'Technology'} leaders think ${orgIn} is more ready for AI than ${d > 0 ? 'technology' : 'business'} leaders do`;
+          if (gd && Math.abs(gd.d) >= 0.5) found.push(`The widest gap is in ${sname(gd.g.id)}: ${f1(Math.abs(gd.d))} steps.`);
+          means.push(d > 0 ? 'Business plans may count on capabilities that technology teams do not believe are in place yet.' : 'Technology teams see capabilities that the business has not yet felt as results.',
+            d > 0 ? 'Check delivery dates with technology leaders before committing to them.' : 'A small, measured win would make that capability visible to the business.');
+          take = gd ? `Agree one view of ${sname(gd.g.id)} before investing in it.` : 'Agree one view of readiness before investing.';
+        } else if (dis.length >= 5) { head = 'On average, business and technology leaders see readiness the same way, but individual leaders differ widely'; means.push('The averages hide real differences between individual leaders. The next section shows where.'); take = 'Agree the picture capability by capability, not on averages.'; }
+        else { head = `Business and technology leaders broadly agree on how ready ${orgIn} is`; means.push('A shared view is a strength: decisions on where to invest are less likely to be reopened.'); take = 'Use this agreement to move quickly.'; }
+      } else if (fn.length) {
+        const miss = !bz && !tc ? 'business and technology' : !tc ? 'technology' : 'business';
+        head = !bz && !tc ? 'No business or technology leaders answered, so their views are missing' : fn.length === 1 ? `Only ${fn[0].name.toLowerCase()} answered, so the ${miss} view is missing` : `No ${miss} leaders answered, so their view is missing`;
+        fn.forEach(x => found.push(`${x.name} average ${f1(x.all)} out of 5.`));
+        means.push(`A plan agreed without ${miss} leaders is likely to be reopened later.`); take = `Ask ${miss} leaders to answer before the readout.`;
+      } else { head = 'Leaders’ functions were not recorded, so only seniority can be compared'; take = 'Record each leader’s function next time to compare business and technology views.'; }
+      if (sen.length > 1) {
+        const hi = sen[0], lo = sen[sen.length - 1], d = hi.all - lo.all;
+        found.push(`${hi.name} average ${f1(hi.all)}; ${lo.name} average ${f1(lo.all)}.`);
+        if (!fn.length) head = Math.abs(d) >= 0.35 ? (d > 0 ? `Senior leaders think ${orgIn} is more ready for AI than those closer to delivery do` : `Leaders closer to delivery think ${orgIn} is more ready for AI than senior leaders do`) : 'Senior and less senior leaders see readiness the same way';
+        if (Math.abs(d) >= 0.35) means.push(d > 0 ? 'Senior leaders are more optimistic than those closer to delivery. Plans based only on the senior view risk underestimating the effort.' : 'Leaders closer to delivery see more capability than senior leaders credit. Look at the evidence before deciding to rebuild.');
+      }
+      if (!means.length) means.push('A shared view across levels makes decisions easier to carry through.');
+      p3 = { base, head, found, means, take, fn, sen };
+    }
+
+    /* 04 disagreement and blind spots */
+    let p4 = null;
+    if (n > 1 && A.scored) {
+      const byStage = {}; dis.forEach(x => byStage[x.cap.g] = (byStage[x.cap.g] || 0) + 1); const ts = Object.keys(byStage).sort((p, r) => byStage[r] - byStage[p])[0];
+      const sideById = {}; R.forEach(r => sideById[r.id] = sideOf(r));
+      const sideByName = {}; R.forEach(r => sideByName[r.respondent.name] = sideOf(r));
+      p4 = { base,
+        head: dis.length && bl.length ? `Leaders disagree on ${dis.length} of 28 capabilities, and some could not answer on ${bl.length}` : dis.length ? `Leaders disagree on ${dis.length} of 28 capabilities` : bl.length ? `Leaders agree, but some could not answer on ${bl.length} capabilit${bl.length > 1 ? 'ies' : 'y'}` : 'Leaders agree, and every leader could answer every question',
+        found: [dis.length ? `Disagreement means answers two or more steps apart. It is most common in ${sname(ts)}.` : 'No capability has answers two or more steps apart.',
+          bl.length ? null : 'Every leader could answer every question.'].filter(Boolean),
+        means: [dis.length ? 'When answers are two steps apart, leaders are describing different organisations. Investing before agreeing the picture leads to rework.' : 'Agreement makes the scores a sound basis for investment.',
+          bl.length ? 'Leaders cannot manage what they cannot see. Each capability they could not rate needs an owner who reports on it.' : null].filter(Boolean),
+        take: dis.length ? `Open the readout with the biggest disagreement${dis.length > 1 ? 's' : ''}, ${listAnd(dis.slice(0, 2).map(x => q(x.cap.n)))}: agree the score before agreeing the plan.` : 'Move straight to the plan.',
+        dots: dis.slice(0, 7).map(x => ({ label: x.cap.n, pts: x.per.filter(p => p.l != null).map(p => ({ l: p.l, side: ['biz', 'tech'].includes(sideByName[p.who]) ? sideByName[p.who] : 'other' })) })), bl: bl.slice(0, 6), dis };
+    }
+
+    /* 05 results so far */
+    const oq = id => NAV.outcomeQs.find(x => x.id === id);
+    const dist = id => { const qq = oq(id), cnt = qq.o.map(() => 0); R.forEach(r => { const o = r.outcomes && r.outcomes[id]; if (!o) return; if (o.dk) cnt[qq.o.length - 1]++; else if (o.v != null) cnt[o.v]++; }); return cnt; };
+    let p5 = null;
+    const answered = R.filter(r => r.outcomes && Object.values(r.outcomes).some(o => o && (o.v != null || o.dk))).length;
+    if (answered) {
+      const v3 = dist('o3'), measured = v3[2] + v3[3], notYet = v3[0] + v3[1], unsure3 = v3[4], o1 = dist('o1'), live3 = o1[2] + o1[3] + o1[4], o2 = dist('o2'), lowConv = o2[0] + o2[1];
+      const p6c = A.groups.P6.cur, p5c = A.groups.P5.cur;
+      const head = answered === 1 ? (measured ? 'The leader who answered says AI is already delivering measured value' : unsure3 ? 'The leader who answered does not know whether AI has delivered value' : 'The leader who answered does not yet see measured value from AI')
+        : measured > notYet + unsure3 ? 'Most leaders say AI is already delivering measured value'
+        : unsure3 > measured + notYet ? 'Most leaders do not know whether AI has delivered value'
+        : measured === 0 ? (notYet ? 'No leader reports measured value from AI yet' : 'No leader reports measured value from AI')
+        : measured < notYet ? 'Few leaders report measured value from AI yet' : 'Leaders are split on whether AI has delivered measured value';
+      const means = [];
+      if (live3 * 2 >= answered && p6c != null && p6c < 2.75) means.push('Several AI systems are live without reliable monitoring, adoption support or value tracking. That value is at risk.');
+      if (lowConv * 2 >= answered && p5c != null && p5c < 2.75) means.push('Few pilots reach production, and proving AI works is not yet reliable. More pilots will not change this; better go or no-go checks will.');
+      if (!measured) means.push('Without measured value, AI budgets will be hard to defend at the next review. Agree goals and a starting baseline for every live use case.');
+      if (unsure3 * 2 >= answered) means.push('When leaders cannot say whether AI pays back, value is not being reported to them. Make it part of regular business reviews.');
+      if (!means.length) means.push('Results and capability tell a consistent story. Keep measuring value as use cases scale.');
+      p5 = { base: `Base: ${answered} leader${answered > 1 ? 's' : ''} who answered the results questions.`, head,
+        rows: ['o1', 'o2', 'o3', 'o5'].map(id => { const qq = oq(id), cnt = dist(id), pal = ['#E6ECF1', '#BFD0DD', '#7FA2BC', '#3F6F93', '#0F2235'], last = qq.o.length - 1;
+          return { label: qq.q, segs: cnt.map((k, i) => ({ n: k, label: qq.o[i], color: i === last ? '#D9D9D9' : pal[Math.round(i / Math.max(1, last - 1) * 4)], dark: i !== last && i / Math.max(1, last - 1) > 0.5 })) }; }),
+        found: answered === 1 ? [`Measured value from AI in the last 12 months: ${measured ? 'yes' : unsure3 ? 'does not know' : 'not yet, or not measured'}.`, `AI use cases live in production: ${o1.some(k => k) ? NAV.outcomeQs[0].o[o1.findIndex(k => k)].toLowerCase() : 'not answered'}.`]
+          : [], means,
+        take: measured > notYet ? 'Show the measured results to the board: they fund the next stage.' : 'Pick one live or nearly live use case and measure its value against a starting baseline within 90 days.' };
+    }
+
+    /* roadmap */
+    const now = A.road.now;
+    const p7 = { head: !A.scored ? 'The plan appears once leaders have answered' : !now.length ? `${org} has no gaps to close for its goal` : `${cap1(words(now.length))} action${now.length > 1 ? 's' : ''} for the next 90 days${A.stall ? ` to unblock ${sname('P' + A.stall)}` : ''}` };
+
+    /* executive summary: one finding per section */
+    const sections = (A.scored ? [j, g2, p3, p4, p5] : [j, p5]).filter(Boolean); sections.forEach((x, i) => x.no = String(i + 1).padStart(2, '0'));
+    const lead = !A.scored ? (n ? `${org}’s leaders could not rate any of the 28 capabilities. Ask the people closest to AI work to answer.` : `${org} has not been assessed yet.`) : [
+      st ? `${org} ${st.head}.` : `${org}’s AI work does not get stuck at any stage.`,
+      A.gapCount ? `To reach its goal, “${amb.name}”, it needs to improve ${A.gapCount} of 28 capabilities.` : `It already meets the bar for its goal, “${amb.name}”.`,
+      p3 && !(p3.head.startsWith('On average') ) ? p3.head + '.' : p3 ? 'Individual leaders see readiness very differently.' : n === 1 ? 'These answers come from one leader, so test them with others before acting on them.' : !K ? 'These scores come from the assessor, so test them with the leadership team before acting on them.' : '',
+      p4 && p4.dis.length && !(p3 && p3.head.startsWith('On average')) ? `Leaders disagree on ${p4.dis.length} capabilit${p4.dis.length > 1 ? 'ies' : 'y'}.` : '',
+      p5 ? p5.head + '.' : '',
+      now.length ? 'Start with the actions below.' : ''].filter(Boolean).join(' ');
+    return { A, K, org: full || org, amb, n, R, base, sections, j, g2, p3, p4, p5, p7, lead, fmt: f1, sname, q };
+  },
+
   /* ---------- document building blocks ---------- */
   build(b) {
-    const D = docx, C = this.C, A = assessBaseline(b), F = BASE.findings(b, A), K = b.combined, P = BASE.peer(b, A);
-    const org = (b.meta.org || 'Your organisation').replace(/^Sample: /, ''), amb = NAV.ambitions.find(a => a.id === b.ambition) || NAV.ambitions[0];
+    const D = docx, C = this.C, I = this.insights(b), A = I.A, K = I.K, P = BASE.peer(b, A), org = I.org, amb = I.amb;
     const date = new Date(b.meta.date || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const R = (t, o) => new D.TextRun(Object.assign({ text: String(t == null ? '' : t) }, o || {}));
     const P_ = (runs, o) => new D.Paragraph(Object.assign({ children: (Array.isArray(runs) ? runs : [runs]).map(r => typeof r === 'string' ? R(r) : r) }, o || {}));
-    const H1 = t => new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [R(t)] });
+    const H1 = (t, o) => new D.Paragraph(Object.assign({ heading: D.HeadingLevel.HEADING_1, children: [R(t)] }, o || {}));
     const H2 = t => new D.Paragraph({ heading: D.HeadingLevel.HEADING_2, children: [R(t)] });
     const body = (t, o) => P_([R(t, o)], { spacing: { after: 120 } });
-    const bullet = (runs) => P_(runs, { numbering: { reference: 'bul', level: 0 }, spacing: { after: 60 } });
-    const num2 = (runs) => P_(runs, { numbering: { reference: 'num', level: 0, instance: 2 }, spacing: { after: 80 } });
+    const bullet = (runs, ref) => P_(runs, { numbering: { reference: ref || 'bul', level: 0 }, spacing: { after: 70 } });
     const num = (runs, inst) => P_(runs, { numbering: { reference: 'num', level: 0, instance: inst || 1 }, spacing: { after: 80 } });
     const bord = (c) => ({ top: { style: D.BorderStyle.SINGLE, size: 4, color: c || C.line }, bottom: { style: D.BorderStyle.SINGLE, size: 4, color: c || C.line }, left: { style: D.BorderStyle.SINGLE, size: 4, color: c || C.line }, right: { style: D.BorderStyle.SINGLE, size: 4, color: c || C.line } });
     const none = { top: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' }, bottom: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' } };
-    const cell = (content, w, o) => { o = o || {}; const kids = (Array.isArray(content) ? content : [content]).map(k => k instanceof D.Paragraph || k instanceof D.Table ? k : P_([R(k, { bold: o.bold, color: o.color, size: o.size || 20 })], o.keep ? { alignment: o.align, keepNext: true, keepLines: true } : { alignment: o.align })); return new D.TableCell({ children: kids, width: { size: w, type: D.WidthType.DXA }, shading: o.fill ? { fill: o.fill, type: D.ShadingType.CLEAR, color: 'auto' } : undefined, borders: o.noBorder ? none : bord(o.border), margins: { top: o.pad || 80, bottom: o.pad || 80, left: 120, right: 120 }, verticalAlign: o.v || D.VerticalAlign.CENTER, columnSpan: o.span }); };
+    const cell = (content, w, o) => { o = o || {}; const kids = (Array.isArray(content) ? content : [content]).map(k => k instanceof D.Paragraph || k instanceof D.Table ? k : P_([R(k, { bold: o.bold, color: o.color, size: o.size || 20 })], o.keep ? { alignment: o.align, keepNext: true, keepLines: true } : { alignment: o.align })); return new D.TableCell({ children: kids, width: { size: w, type: D.WidthType.DXA }, shading: o.fill ? { fill: o.fill, type: D.ShadingType.CLEAR, color: 'auto' } : undefined, borders: o.noBorder ? none : bord(o.border), margins: { top: o.pad || 80, bottom: o.pad || 80, left: o.padX || 120, right: o.padX || 120 }, verticalAlign: o.v || D.VerticalAlign.CENTER, columnSpan: o.span }); };
     const table = (widths, rows) => new D.Table({ width: { size: widths.reduce((a, x) => a + x, 0), type: D.WidthType.DXA }, columnWidths: widths, rows: rows.map(r => r instanceof D.TableRow ? r : new D.TableRow({ children: r, cantSplit: true })) });
     const head = (labels, widths) => new D.TableRow({ tableHeader: true, cantSplit: true, children: labels.map((l, i) => cell(l, widths[i], { fill: C.navy, color: C.white, bold: true, size: 19, keep: true })) });
     const img = (im, wPx) => new D.ImageRun({ type: 'png', data: im.data, transformation: { width: wPx, height: Math.round(wPx * im.h / im.w) } });
+    const pic = (im, w) => P_([img(im, w || 600)], { alignment: D.AlignmentType.CENTER, spacing: { before: 120, after: 160 } });
     const callout = (title, text, fill, edge) => table([this.W], [[cell([P_([R(title, { bold: true, color: C.navy })], { spacing: { after: 60 } }), P_([R(text)])], this.W, { fill, border: edge, pad: 140 })]]);
     const gap = () => P_([R('')], { spacing: { after: 80 } });
-    const stageName = g => g.id === 'F' ? 'Foundations' : g.name;
-    const lvl = v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1);
+    const lvl = I.fmt;
     const roleShort = r => NAV.roleShort[r] || 'Other';
+    const stageName = g => g.id === 'F' ? 'Foundations' : g.name;
 
-    /* ----- cover ----- */
+    /* section opener: number, finding as the headline, base line */
+    const opener = (s, first) => [
+      P_([R(s.no, { color: C.gold, bold: true, size: 26 })], { pageBreakBefore: !first, spacing: { after: 40 }, keepNext: true }),
+      H1(s.head, { spacing: { before: 0, after: 100 } }),
+      P_([R(s.base, { color: C.muted, size: 18 })], { spacing: { after: 160 }, keepNext: true })];
+    /* found + what this means for leaders, side by side */
+    const meaning = (s) => !s.found.length ? table([this.W], [[cell([P_([R('What this means for leaders', { bold: true, color: '7A5A12', size: 19 })], { spacing: { after: 80 } }), ...s.means.map(t => P_([R(t, { size: 19 })], { spacing: { after: 100 } }))], this.W, { fill: C.goldSoft, border: C.goldSoft, v: D.VerticalAlign.TOP, pad: 160 })]]) : table([5226, 3800], [[
+      cell([P_([R('What we found', { bold: true, color: C.sea, size: 19 })], { spacing: { after: 80 } }), ...s.found.map(t => bullet([R(t, { size: 19 })]))], 5226, { noBorder: true, v: D.VerticalAlign.TOP, pad: 60, padX: 0 }),
+      cell([P_([R('What this means for leaders', { bold: true, color: '7A5A12', size: 19 })], { spacing: { after: 80 } }), ...s.means.map(t => P_([R(t, { size: 19 })], { spacing: { after: 100 } }))], 3800, { fill: C.goldSoft, border: C.goldSoft, v: D.VerticalAlign.TOP, pad: 160 })]]);
+    const takeaway = (t) => [gap(), table([this.W], [[cell(P_([R(t, { bold: true, size: 23, color: C.navy })]), this.W, { border: C.navy, pad: 180, padX: 220 })]])];
+
+    /* ----- page 1: title band, score, one line per section, where to start ----- */
     const ring = this.ring(A.index == null ? null : A.index);
-    const cover = [
+    const execOf = (SECS) => [
       table([this.W], [[cell([
-        P_([R('ENTERPRISE AI NAVIGATOR', { bold: true, color: 'E3B05A', size: 20, characterSpacing: 40 })], { spacing: { after: 360 } }),
-        P_([R('AI Readiness Report', { bold: true, color: C.white, size: 60, font: 'Georgia' })], { spacing: { after: 160 } }),
-        P_([R(org, { color: C.white, size: 36 })], { spacing: { after: 120 } }),
-        P_([R(`${date} · ${K ? `Based on ${K.n} leader${K.n > 1 ? 's’' : '’s'} answers` : 'Assessor view'}${b.meta.scope ? ' · ' + b.meta.scope : ''}`, { color: 'C9D4DE', size: 22 })], { spacing: { after: 240 } })
-      ], this.W, { fill: C.navy, border: C.navy, pad: 520 })]]),
+        P_([R('Enterprise AI Navigator', { bold: true, color: 'E3B05A', size: 20 })], { spacing: { after: 160 } }),
+        P_([R('AI Readiness Report', { bold: true, color: C.white, size: 52, font: 'Georgia' })], { spacing: { after: 100 } }),
+        P_([R(org, { color: C.white, size: 32 })], { spacing: { after: 100 } }),
+        P_([R(`${date}  |  ${K ? `Based on ${K.n} leader${K.n > 1 ? 's’' : '’s'} answers` : 'Assessor view'}${b.meta.scope ? '  |  ' + b.meta.scope : ''}  |  Confidential`, { color: 'C9D4DE', size: 20 })])
+      ], this.W, { fill: C.navy, border: C.navy, pad: 360, padX: 360 })]]),
       gap(),
-      table([3000, 6026], [[cell(P_([img(ring, 170)], { alignment: D.AlignmentType.CENTER }), 3000, { noBorder: true }),
-        cell([P_([R('Journey readiness', { bold: true, color: C.navy, size: 28 })], { spacing: { after: 80 } }),
-          P_([R(A.scored ? (A.reach ? `Reliable through Stage ${A.reach} of 6` : 'Not yet reliable at Stage 1') : 'Not assessed yet', { size: 24 })], { spacing: { after: 60 } }),
-          P_([R(A.stall ? `AI work stalls at ${NAV.bgroups[A.stall - 1].name.replace(/^Stage \d · /, 'Stage ' + A.stall + ', ')}` : 'No stall point', { size: 24 })], { spacing: { after: 60 } }),
-          P_([R(A.arche ? `Profile: ${A.arche.name}` : '', { size: 24, bold: true, color: C.gold })])], 6026, { noBorder: true })]]),
-      gap(),
-      P_([R('This report shows where your organisation stands on the six stages of an AI project, where it wants to go, the gaps in between, where your leaders see things differently, and a sequenced plan to close the gaps.', { color: C.muted })], { spacing: { after: 120 } }),
-      P_([R('Confidential: prepared for ' + org + '.', { color: C.muted, size: 18, italics: true })]),
-      P_([new D.PageBreak()])
+      table([2300, 6726], [[cell(P_([img(ring, 130)], { alignment: D.AlignmentType.CENTER }), 2300, { noBorder: true }),
+        cell([P_([R('AI readiness score', { bold: true, color: C.navy, size: 26 })], { spacing: { after: 60 } }),
+          P_([R(A.scored ? 'Measured across the six stages of an AI project; 100 means every stage is optimised. The weakest stage holds the score down.' : 'No score yet: there are no answers to score.', { size: 19, color: C.muted })])], 6726, { noBorder: true })]]),
+      H2('What we found'),
+      ...SECS.map(s => P_([R(s.no + '   ', { bold: true, color: C.gold }), R(s.head)], { spacing: { after: 100 }, indent: { left: 540, hanging: 540 } })),
     ];
 
-    /* ----- at a glance + executive summary ----- */
-    const kpi = (k, v, s) => cell([P_([R(k, { color: C.muted, size: 18 })], { spacing: { after: 40 } }), P_([R(v, { bold: true, size: 36, color: C.navy })], { spacing: { after: 40 } }), P_([R(s, { size: 18, color: C.muted })])], 3008, { fill: C.grey, border: C.grey, pad: 160 });
-    const glance = [H1('At a glance'),
-      table([3009, 3008, 3009], [[kpi('Journey readiness', A.index == null ? '—' : `${Math.round(A.index)} / 100`, 'Average maturity, capped one level above the weakest stage'), kpi('Reliable through', A.reach ? `Stage ${A.reach}` : '—', `Target for your ambition: Stage ${A.targetReach}`), kpi('Gaps to close', `${A.gapCount} of 28`, `${A.gapSum} maturity levels in total`)]]),
-      gap(),
-      A.arche ? callout(`Your profile: ${A.arche.name}`, `${A.arche.d} First move: ${A.arche.move}`, C.goldSoft, 'E8D3A6') : gap(),
-      H2('Summary of findings'),
-      ...F.map(f => num([R(f.sec + '. ', { bold: true }), R(f.t)])),
-      num([R('Recommended next steps. ', { bold: true }), R('Agree the picture in a readout with your leaders, start the “Now” actions, test one use case before funding it, and reassess in six months.')]),
-      P_([new D.PageBreak()])];
+    /* ----- sections ----- */
+    const S = [];
+    const j = I.j; S.push(...opener(j, false), pic(this.stages(b, A, P)), P_([R('Bars show where each stage is today; diamonds show where your goal needs it to be.', { size: 17, color: C.muted, italics: true })], { alignment: D.AlignmentType.CENTER, spacing: { after: 160 } }), meaning(j), ...takeaway(j.take));
+    const g2 = I.g2; const pW = [2700, 1100, 5226];
+    S.push(...opener(g2), P_([R('Steps to climb on the 1 to 5 scale, added up for each stage', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.bars(g2.rows, { rowH: 74, fmt: v => v ? `${v} step${v > 1 ? 's' : ''}` : 'On target' }), 560), meaning(g2), ...takeaway(g2.take));
+    if (I.p3) { const s = I.p3; S.push(...opener(s), P_([R('Average answer for each stage, by function (1 to 5)', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.groupBars(s.fn), 480), P_([R('Business includes general management, finance, sales, marketing, channels and operations; technology includes IT and IT security. Averages from small groups of leaders are indicative.', { size: 16, color: C.muted, italics: true })], { spacing: { after: 140 } }));
+      if (s.sen.length > 1) S.push(P_([R('Average answer across all 28 capabilities, by seniority (1 to 5)', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.bars(s.sen.map(x => ({ label: x.name, sub: `${x.n} leader${x.n > 1 ? 's' : ''}`, v: x.all || 0 })), { max: 5, rowH: 84, color: '#1E5A82', fmt: v => v.toFixed(1) }), 520));
+      S.push(meaning(s), ...takeaway(s.take)); }
+    if (I.p4) { const s = I.p4; S.push(...opener(s));
+      if (s.dots.length) S.push(P_([R('Where leaders disagree most', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.dots(s.dots, [{ name: 'Business', color: this.COL.biz }, { name: 'Technology', color: this.COL.tech }, { name: 'Other functions', color: this.COL.other }].filter(l => s.dots.some(d => d.pts.some(p => this.COL[p.side] === l.color)))), 600));
+      if (s.bl.length) S.push(P_([R('Capabilities some leaders could not rate (number who said “Don’t know”)', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.bars(s.bl.map(x => ({ label: x.cap.n, v: x.dk })), { max: I.n, rowH: 74, color: '#9AABB9', fmt: v => `${v} of ${I.n}` }), 520));
+      S.push(meaning(s), ...takeaway(s.take)); }
+    if (I.p5) { const s = I.p5; S.push(...opener(s), P_([R('What leaders say about results so far (number of leaders giving each answer)', { bold: true, color: C.sea, size: 19 })], { keepNext: true }), pic(this.stack(s.rows), 600), meaning(s), ...takeaway(s.take)); }
 
-    /* ----- 1. where you are ----- */
-    const stagesImg = this.stages(b, A, P);
-    const s1 = [H1('1. Where you are on the AI journey'), body(F[0].t),
-      P_([img(stagesImg, 600)], { alignment: D.AlignmentType.CENTER, spacing: { after: 120 } }),
-      body('A stage counts as reliable when its capabilities average about level 3 or more, with none below level 2. The first stage that is not reliable is where AI work typically stalls: projects get stuck there however strong the later stages are.', { color: C.muted, size: 19 })];
-
-    /* ----- 2. where you want to go ----- */
-    const s2 = [H1('2. Where you want to go'), body(F[1].t),
-      table([2600, 6426], [[cell('Ambition', 2600, { fill: C.grey, bold: true }), cell(`${amb.name}: ${amb.d}`, 6426)], [cell('Target', 2600, { fill: C.grey, bold: true }), cell(`Reliable through Stage ${A.targetReach}`, 6426)],
-        [cell('Planned AI use-case categories', 2600, { fill: C.grey, bold: true }), cell(b.patterns.length ? b.patterns.map(p => NAV.patternById(p).name).join(', ') : 'None chosen yet', 6426)]])];
-
-    /* ----- 3. gaps by stage ----- */
-    const gW = [3200, 1000, 1000, 1000, 2826];
-    const gapRows = NAV.bgroups.map(g => { const G = A.groups[g.id]; const below = G.cs.filter(x => x.cur != null && x.cur < x.t); const gp = G.cur == null ? null : G.tgt - G.cur;
-      return [cell(stageName(g), gW[0], { bold: A.stall && g.id === 'P' + A.stall }), cell(lvl(G.cur), gW[1], { align: D.AlignmentType.CENTER }), cell(lvl(G.tgt), gW[2], { align: D.AlignmentType.CENTER }),
-        cell(gp == null ? '—' : gp > 0.05 ? '+' + lvl(gp) : 'On target', gW[3], { align: D.AlignmentType.CENTER, fill: gp == null ? undefined : gp > 1 ? C.redSoft : gp > 0.05 ? C.goldSoft : C.greenSoft }), cell(below.length ? below.map(x => x.cap.n).join('; ') : '—', gW[4], { size: 18 })]; });
-    const pri = A.pri.slice(0, 10); const pW = [2700, 1100, 5226];
-    const s3 = [H1('3. Gaps by stage'), P_([R(F[2].t)], { spacing: { after: 120 }, keepNext: true }), table(gW, [head(['Stage', 'Today', 'Target', 'Gap', 'Capabilities below target'], gW), ...gapRows]),
-      P_([R('Shading: red for a gap of more than one level, amber for up to one level, green on target.', { size: 17, color: C.muted, italics: true })], { spacing: { before: 60, after: 200 } }),
-      H2('The gaps that matter most'), body('Ranked by size and by how early in the journey they sit: an early-stage gap holds back every stage after it.'),
-      table(pW, [head(['Capability', 'Today → target', 'What the next level looks like'], pW), ...pri.map(x => [cell([P_([R(x.cap.n, { bold: true, size: 20 })]), P_([R(x.cap.g === 'F' ? 'Foundations' : 'Stage ' + x.cap.g.slice(1), { size: 17, color: C.muted })])], pW[0]), cell(`${x.cur} → ${x.t}`, pW[1], { align: D.AlignmentType.CENTER }), cell(BASE.action(x), pW[2], { size: 19 })])])];
-
-    /* ----- 4. leadership alignment ----- */
-    const dis = BASE.disagreements(b).slice(0, 10); const aW = [3300, 1100, 4626];
-    const s4 = [H1('4. Where your leaders disagree'), body(F[3].t)];
-    if (K && K.n > 1 && dis.length) s4.push(table(aW, [head(['Capability', 'Spread', 'How each leader scored it'], aW), ...dis.map(x => [cell(x.cap.n, aW[0], { bold: true }), cell(`${x.spread} levels`, aW[1], { align: D.AlignmentType.CENTER, fill: x.spread >= 3 ? C.redSoft : C.goldSoft }), cell(x.per.map(p => `${roleShort(p.role)}: ${p.dk ? 'don’t know' : p.l == null ? '—' : p.l}`).join(' · '), aW[2], { size: 18 })])]),
-      P_([R('A spread of two or more levels means leaders are describing different organisations. Agreeing the score is the first conversation to have, before investing.', { size: 18, color: C.muted, italics: true })], { spacing: { before: 60 } }));
-
-    /* ----- 5. visibility ----- */
-    const bl = BASE.blindspots(b).slice(0, 8);
-    const s5 = [H1('5. Where leaders lack visibility'), body(F[4].t)];
-    if (bl.length) s5.push(table([5600, 3426], [head(['Capability', 'Leaders who answered “don’t know”'], [5600, 3426]), ...bl.map(x => [cell(x.cap.n, 5600), cell(`${x.dk} of ${x.n}`, 3426, { align: D.AlignmentType.CENTER })])]));
-
-    /* ----- 6. roadmap ----- */
-    const col = (title, items, fill, color) => cell([P_([R(title, { bold: true, color, size: 22 })], { spacing: { after: 120 } }), ...(items.length ? items.flatMap(x => [P_([R(x.cap.n, { bold: true, size: 19 })], { spacing: { after: 20 } }), P_([R(`Level ${x.cur} → ${x.t}. ${BASE.action(x)}`, { size: 17, color: '33475B' })], { spacing: { after: 140 } })]) : [P_([R('Nothing scheduled', { size: 18, color: C.muted })])])], 3008, { fill, v: D.VerticalAlign.TOP, border: C.line, pad: 140 });
-    const s6 = [H1('6. Your roadmap'), body(F[5].t),
-      table([3009, 3008, 3009], [[col('Now · 0–3 months', A.road.now, C.goldSoft, '7A5A12'), col('Next · 3–9 months', A.road.next, C.seaSoft, C.sea), col('Later · 9–18 months', A.road.later, C.grey, C.muted)]]),
-      P_([R('Sequenced upstream first, around the stall point: closing an early-stage gap unblocks the stages after it. Each item names the next level to reach.', { size: 18, color: C.muted, italics: true })], { spacing: { before: 80 } })];
-
-    /* ----- 7. how others compare ----- */
-    const s7 = [H1('7. How you compare'), body(F[6].t)];
-    if (P) { const cW = [3300, 1000, 1500, 1500, 1726];
-      s7.push(H2(`Against India peers: ${P.g.key === 'all' ? 'all organisations in the benchmark' : P.g.label} (${P.g.n} organisations)`),
+    /* comparison */
+    const cmpNo = String(I.sections.length + 1).padStart(2, '0');
+    const refs = BASE.refCaps(b, A).filter(x => x.cur != null && x.gap > 0).slice(0, 5);
+    const cmp = []; let cmpHead = null;
+    if (P) { const cW = [3300, 1000, 1500, 1500, 1726]; const ahead = P.stages.filter(x => x.pos === 'Ahead').length, behind = P.stages.filter(x => x.pos === 'Behind').length;
+      cmpHead = behind > ahead ? `${org} is behind its India peers on ${behind} of ${P.stages.filter(x => x.s).length} stages` : ahead > behind ? `${org} is ahead of its India peers on ${ahead} of ${P.stages.filter(x => x.s).length} stages` : `${org} is broadly in line with its India peers`;
+      cmp.push(...opener({ no: cmpNo, head: behind > ahead ? `${org} is behind its India peers on ${behind} of ${P.stages.filter(x => x.s).length} stages` : ahead > behind ? `${org} is ahead of its India peers on ${ahead} of ${P.stages.filter(x => x.s).length} stages` : `${org} is broadly in line with its India peers`, base: `Peers: ${P.g.key === 'all' ? 'all organisations in the benchmark' : P.g.label} (${P.g.n} organisations).` }),
         table(cW, [head(['Stage', 'You', 'Peer median', 'Peers’ middle half', 'Position'], cW), ...P.stages.filter(x => x.s).map(x => [cell(stageName(x.gr), cW[0]), cell(lvl(x.cur), cW[1], { align: D.AlignmentType.CENTER }), cell(lvl(x.s.med), cW[2], { align: D.AlignmentType.CENTER }), cell(`${lvl(x.s.p25)}–${lvl(x.s.p75)}`, cW[3], { align: D.AlignmentType.CENTER }), cell(x.pos || '—', cW[4], { align: D.AlignmentType.CENTER, bold: true, fill: x.pos === 'Ahead' ? C.greenSoft : x.pos === 'Behind' ? C.redSoft : undefined })])]),
         P_([R(`${P.B.name}${P.B.wave ? ', ' + P.B.wave : ''}. ${P.B.demo ? 'Illustrative demo data, not real organisations. ' : ''}Self-assessed by several leaders per organisation; no group of fewer than 5 organisations is shown.`, { size: 17, color: C.muted, italics: true })], { spacing: { before: 60, after: 200 } }));
-    } else s7.push(callout('India peer benchmark', 'Your position against organisations in your industry and size band will be added once the Enterprise AI Navigator India AI Readiness Benchmark is published.', C.seaSoft, 'C5D7E4'), gap());
-    const refs = BASE.refCaps(b, A).filter(x => x.cur != null && x.gap > 0).slice(0, 5);
-    if (refs.length) { const rW = [2700, 6326]; s7.push(H2('What published studies report for your biggest gaps'),
-      table(rW, [head(['Capability (you today → target)', 'Published comparison'], rW), ...refs.map(x => [cell(`${x.cap.n} (${x.cur} → ${x.t})`, rW[0], { bold: true, size: 19 }), cell(x.refs.slice(0, 2).map(r => P_([R(r.v + ' ', { bold: true, color: C.sea, size: 19 }), R(r.t + ' ', { size: 19 }), new D.ExternalHyperlink({ link: r.url, children: [R(`${r.src}, ${r.yr}`, { size: 17, color: C.sea, underline: {} })] })], { spacing: { after: 80 } })), rW[1])])]),
-      P_([R('Published figures come from named studies with their own samples and definitions. They are context, never blended into your scores.', { size: 17, color: C.muted, italics: true })], { spacing: { before: 60 } })); }
+    } else if (refs.length) cmp.push(...opener({ no: cmpNo, head: (cmpHead = `What published studies say about ${org}’s biggest gaps`), base: 'Each figure names its source. Comparison with similar Indian organisations will be added once the India benchmark is published.' }));
+    if (refs.length) { const rW = [2700, 6326]; if (P) cmp.push(H2('What published studies report for your biggest gaps'));
+      cmp.push(table(rW, [head(['Capability (you today → target)', 'Published comparison'], rW), ...refs.map(x => [cell(`${x.cap.n} (${x.cur} → ${x.t})`, rW[0], { bold: true, size: 19 }), cell(x.refs.slice(0, 2).map(r => P_([R(r.v + ' ', { bold: true, color: C.sea, size: 19 }), R(r.t + ' ', { size: 19 }), new D.ExternalHyperlink({ link: r.url, children: [R(`${r.src}, ${r.yr}`, { size: 17, color: C.sea, underline: {} })] })], { spacing: { after: 80 } })), rW[1])])]),
+        P_([R('Published figures come from named studies with their own samples and definitions. They are context, never blended into your scores.', { size: 17, color: C.muted, italics: true })], { spacing: { before: 60 } })); }
 
-    /* ----- 8. next steps ----- */
-    const s8 = [H1('8. Recommended next steps'),
-      num2([R('Agree the picture. ', { bold: true }), R(`Hold a 90-minute readout with the leaders who answered${dis.length ? `, starting with the ${dis.length} capabilit${dis.length > 1 ? 'ies' : 'y'} where they disagree` : ''}.`)]),
-      num2([R('Start the “Now” actions. ', { bold: true }), R(`Name one owner and one 90-day milestone for each of the ${A.road.now.length} items in the first column of the roadmap.`)]),
-      num2([R('Test one use case. ', { bold: true }), R('Take your most promising AI use case through the Decision Compass and the AI Impact Model before funding it: a go or no-go decision, a costed budget and a risk-adjusted return.')]),
-      num2([R('Measure progress. ', { bold: true }), R('Repeat this assessment in six months with the same leaders to see which gaps have closed.')]),
-      gap(), callout('Talk to the Enterprise AI Navigator team', 'We can run the readout session with your leadership team and take your first use case through the Decision Compass. Write to amitmehta@symvayaai.com or visit symvayaai.com/navigator.html.', C.goldSoft, 'E8D3A6'),
-      P_([new D.PageBreak()])];
+    /* roadmap */
+    const col = (title, all, fill, color) => { const items = all.slice(0, 5), more = all.length - items.length; return cell([P_([R(title, { bold: true, color, size: 22 })], { spacing: { after: 120 } }), ...(more ? [] : []), ...(items.length ? items.flatMap(x => [P_([R(x.cap.n, { bold: true, size: 19 })], { spacing: { after: 20 } }), P_([R(`From ${x.cur} to ${x.t}: ${BASE.action(x).replace(/\.$/, '')}.`, { size: 17, color: '33475B' })], { spacing: { after: 140 } })]) : [P_([R('Nothing scheduled', { size: 18, color: C.muted })])]), ...(more ? [P_([R(`Plus ${more} more: see Appendix A`, { size: 17, color: C.muted, italics: true })])] : [])], 3008, { fill, v: D.VerticalAlign.TOP, border: C.line, pad: 140 }); };
+    const rNo = String(I.sections.length + (cmp.length ? 2 : 1)).padStart(2, '0');
+    const road = [...opener({ no: rNo, head: I.p7.head, base: 'Earlier stages come first, because a gap early in the journey holds back every stage after it.' }),
+      new D.Table({ width: { size: this.W, type: D.WidthType.DXA }, columnWidths: [3009, 3008, 3009], rows: [new D.TableRow({ cantSplit: false, children: [col('Now: 0–3 months', A.road.now, C.goldSoft, '7A5A12'), col('Next: 3–9 months', A.road.next, C.seaSoft, C.sea), col('Later: 9–18 months', A.road.later, C.grey, C.muted)] })] }),
+      gap(), H2('Recommended next steps'),
+      num([R('Agree the picture. ', { bold: true }), R(`Hold a 90-minute session with the leaders who answered${I.p4 && I.p4.dis.length ? `, starting with the capabilities where they disagree` : ''}.`)], 2),
+      num([R('Start the “Now” actions. ', { bold: true }), R(`Give each of the ${A.road.now.length} actions in the first column one owner and one 90-day milestone.`)], 2),
+      num([R('Test one use case. ', { bold: true }), R('Take your most promising AI use case through a go or no-go review before funding it.')], 2),
+      num([R('Measure progress. ', { bold: true }), R('Repeat this assessment in six months with the same leaders to see which gaps have closed.')], 2),
+      gap(), callout('Talk to the Enterprise AI Navigator team', 'We can run the session with your leadership team. Write to amitmehta@symvayaai.com or visit symvayaai.com/ai-readiness.', C.goldSoft, 'E8D3A6')];
 
-    /* ----- appendices ----- */
-    const apW = [3900, 1000, 1000, 1500, 1626];
-    const apRows = []; NAV.bgroups.forEach(g => { apRows.push(new D.TableRow({ children: [cell(stageName(g), this.W, { fill: C.grey, bold: true, span: 5, size: 19 })] }));
-      A.groups[g.id].cs.forEach(x => apRows.push([cell(x.cap.n, apW[0], { size: 18 }), cell(x.cur == null ? '—' : String(x.cur), apW[1], { align: D.AlignmentType.CENTER, size: 18 }), cell(String(x.t), apW[2], { align: D.AlignmentType.CENTER, size: 18 }), cell({ proven: 'Can show evidence', partial: 'Some evidence', assumed: 'Best guess' }[x.st.ev] || '—', apW[3], { size: 17 }), cell(K && K.n > 1 ? (K.spread[x.cap.id] === 0 ? 'None' : K.spread[x.cap.id] === 1 ? '1 level' : `${K.spread[x.cap.id]} levels`) : '—', apW[4], { align: D.AlignmentType.CENTER, size: 18 })])); });
-    const app = [H1('Appendix A. All 28 capabilities'), table(apW, [head(['Capability', 'Today', 'Target', 'Evidence', 'Leaders’ spread'], apW), ...apRows]),
+    /* appendices */
+    const multi = K && K.n > 1, apW = multi ? [4900, 1100, 1100, 1926] : [6826, 1100, 1100];
+    const apRows = []; NAV.bgroups.forEach(g => { apRows.push(new D.TableRow({ cantSplit: true, children: [cell(stageName(g), this.W, { fill: C.grey, bold: true, span: apW.length, size: 19, keep: true })] }));
+      A.groups[g.id].cs.forEach(x => apRows.push([cell(x.cap.n, apW[0], { size: 18 }), cell(x.cur == null ? '—' : String(x.cur), apW[1], { align: D.AlignmentType.CENTER, size: 18 }), cell(String(x.t), apW[2], { align: D.AlignmentType.CENTER, size: 18 }), ...(multi ? [cell(K.spread[x.cap.id] === 0 ? 'Same answer' : K.spread[x.cap.id] === 1 ? '1 step' : `${K.spread[x.cap.id]} steps`, apW[3], { align: D.AlignmentType.CENTER, size: 18 })] : [])])); });
+    const app = [H1('Appendix A. All 28 capabilities', { pageBreakBefore: true }), table(apW, [head(['Capability', 'Today', 'Target', 'How far apart leaders were'].slice(0, apW.length), apW), ...apRows]),
       H1('Appendix B. How this report was produced'),
       bullet([R('28 capabilities, four for each of the six stages of an AI project plus four foundations, each scored from 1 (ad hoc) to 5 (optimised).')]),
-      bullet([R(K ? 'Each capability score is the median of the leaders’ answers, rounded down. “Don’t know” answers are left out of the score and reported as visibility gaps.' : 'Scores were entered by the assessor.')]),
-      bullet([R('Journey readiness is the average maturity of the six stages, capped one level above the weakest stage, shown out of 100.')]),
-      bullet([R('Targets come from your stated ambition and rise by one level where your planned AI use-case categories depend on a capability.')])];
-    if (K && K.people && K.people.length) { const mW = [3600, 3600, 1826]; app.push(H2('Leaders who answered'), table(mW, [head(['Name', 'Role', 'Date'], mW), ...K.people.map(p => [cell(p.name, mW[0], { size: 18 }), cell(p.role || '', mW[1], { size: 18 }), cell(p.at || '', mW[2], { size: 18 })])])); }
+      bullet([R(K ? 'Each capability score is the middle (median) answer of the leaders, rounded down. “Don’t know” answers are left out of the score and reported separately.' : 'Scores were entered by the assessor.')]),
+      ...(K && K.n > 1 ? [bullet([R('Leaders disagree on a capability when their answers are two or more steps apart. With five or more leaders, the most extreme fifth of answers at each end is set aside, so one outlier does not count as disagreement.')])] : []),
+      bullet([R('A stage is reliable when its capabilities average about 3 or more, with none below 2. The AI readiness score is the average of the six stages, held to no more than one step above the weakest stage, shown out of 100.')]),
+      bullet([R('Targets come from the goal your leaders chose, and are one step higher where the kinds of AI you plan to use depend on a capability.')]),
+      bullet([R('Headlines and findings are written from the scores by fixed rules, so the same answers always give the same report. Comparisons between groups of leaders are averages of their answers; with few leaders in a group they are indicative.')])];
+    if (K && K.people && K.people.length) { const mW = [3600, 3600, 1826]; app.push(H2('Leaders who answered'), table(mW, [head(['Name', 'Function', 'Date'], mW), ...K.people.map(p => [cell(p.name, mW[0], { size: 18 }), cell(p.role || '', mW[1], { size: 18 }), cell(p.at || '', mW[2], { size: 18 })])])); }
 
-    const footer = new D.Footer({ children: [P_([R(`Enterprise AI Navigator · AI Readiness Report · ${org} · Confidential`, { size: 16, color: C.muted }), R('\tPage ', { size: 16, color: C.muted }), new D.TextRun({ children: [D.PageNumber.CURRENT], size: 16, color: C.muted })], { tabStops: [{ type: D.TabStopType.RIGHT, position: this.W }] })] });
+    const footer = new D.Footer({ children: [P_([R(`Enterprise AI Navigator  |  AI Readiness Report  |  ${org}  |  Confidential`, { size: 16, color: C.muted }), R('\tPage ', { size: 16, color: C.muted }), new D.TextRun({ children: [D.PageNumber.CURRENT], size: 16, color: C.muted })], { tabStops: [{ type: D.TabStopType.RIGHT, position: this.W }] })] });
     return new D.Document({
-      creator: 'Enterprise AI Navigator', title: `AI Readiness Report · ${org}`, description: 'AI readiness gap analysis and roadmap',
+      creator: 'Enterprise AI Navigator', title: `AI Readiness Report: ${org}`, description: 'AI readiness findings and roadmap',
       styles: { default: { document: { run: { font: 'Arial', size: 21, color: '1C2B39' }, paragraph: { spacing: { line: 288, lineRule: D.LineRuleType.AUTO } } } },
         paragraphStyles: [
-          { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: 'Georgia', size: 34, bold: true, color: C.navy }, paragraph: { spacing: { before: 360, after: 160 }, keepNext: true, keepLines: true, outlineLevel: 0 } },
-          { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: 'Arial', size: 25, bold: true, color: C.sea }, paragraph: { spacing: { before: 280, after: 120 }, keepNext: true, keepLines: true, outlineLevel: 1 } }] },
+          { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: 'Georgia', size: 36, bold: false, color: C.navy }, paragraph: { spacing: { before: 360, after: 160 }, keepNext: true, keepLines: true, outlineLevel: 0 } },
+          { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: 'Arial', size: 24, bold: true, color: C.sea }, paragraph: { spacing: { before: 240, after: 120 }, keepNext: true, keepLines: true, outlineLevel: 1 } }] },
       numbering: { config: [
-        { reference: 'bul', levels: [{ level: 0, format: D.LevelFormat.BULLET, text: '•', alignment: D.AlignmentType.LEFT, style: { paragraph: { indent: { left: 440, hanging: 260 } } } }] },
+        { reference: 'bul', levels: [{ level: 0, format: D.LevelFormat.BULLET, text: '•', alignment: D.AlignmentType.LEFT, style: { paragraph: { indent: { left: 360, hanging: 260 } } } }] },
         { reference: 'num', levels: [{ level: 0, format: D.LevelFormat.DECIMAL, text: '%1.', alignment: D.AlignmentType.LEFT, style: { paragraph: { indent: { left: 440, hanging: 360 } } } }] }] },
-      sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, bottom: 1300, left: 1440, right: 1440 } }, titlePage: true },
-        footers: { default: footer, first: new D.Footer({ children: [P_([R('')])] }) },
-        children: [...cover, ...glance, ...s1, gap(), ...s2, ...s3, ...s4, ...s5, ...s6, ...s7, ...s8, ...app] }]
+      sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1300, bottom: 1300, left: 1440, right: 1440 } }, titlePage: false },
+        footers: { default: footer },
+        children: [...execOf(I.sections.concat(cmpHead ? [{ no: cmpNo, head: cmpHead }] : [], [{ no: rNo, head: I.p7.head }])), ...S, ...cmp, ...road, ...app] }]
     });
   },
   async blob(b) { return docx.Packer.toBlob(this.build(b)); },
@@ -4421,11 +4624,15 @@ const App = {
     let ok = [], bad = 0; texts.forEach(t => { const r = BASE.parseResponses(t); ok = ok.concat(r.ok); bad += r.bad; });
     if (!ok.length) { UI.toast(bad ? 'No responses found in that. Paste the response code (it starts with EAN1-), the whole email, or a Netlify CSV export.' : 'Nothing to import'); return; }
     const norm = s => String(s || '').toLowerCase().replace(/\b(pvt|private|ltd|limited|inc|llp|plc)\b|[^a-z0-9]/g, '');
-    const groups = {}; ok.forEach(r => { const k = norm(r.respondent.org) || '?'; (groups[k] = groups[k] || { name: r.respondent.org || 'Organisation not given', list: [] }).list.push(r); });
+    /* One organisation = same company email domain or same organisation name (either links them) */
+    const par = {}, find = x => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; }, link = (x, y) => { par[x] = par[x] || x; par[y] = par[y] || y; par[find(x)] = find(y); };
+    const keyOf = ok.map(r => { const d = NAV.workDomain(r.respondent.email), o = norm(r.respondent.org); const ks = [d && '@' + d, o && 'o:' + o].filter(Boolean); if (!ks.length) ks.push('?'); ks.forEach(k => { par[k] = par[k] || k; }); if (ks.length > 1) link(ks[0], ks[1]); return ks[0]; });
+    const groups = {}; ok.forEach((r, i) => { const k = find(keyOf[i]); const g = groups[k] = groups[k] || { names: {}, domains: {}, list: [] }; g.list.push(r); const o = (r.respondent.org || '').trim(); if (o) g.names[o] = (g.names[o] || 0) + 1; const d = NAV.workDomain(r.respondent.email); if (d) g.domains[d] = 1; });
+    Object.values(groups).forEach(g => { const top = Object.keys(g.names).sort((x, y) => g.names[y] - g.names[x])[0]; g.name = (top || 'Organisation not given') + (Object.keys(g.domains).length ? ' (@' + Object.keys(g.domains).join(', @') + ')' : ''); });
     const keys = Object.keys(groups);
     if (keys.length > 1 && !this._orgPick) {
       this._pending = { groups, bad };
-      const cur = norm(this.ws.baseline.meta.org);
+      const curO = norm(this.ws.baseline.meta.org), cur = Object.keys(groups).find(k => groups[k].list.some(r => norm(r.respondent.org) === curO)) || '';
       this.modal(`<h3>Responses from ${keys.length} organisations</h3><p class="small">A readiness baseline describes one organisation. Choose whose responses to bring into this workspace. To study all of them together, use Industry insights instead.</p>
         <div class="stack" style="gap:6px">${keys.sort((x, y) => groups[y].list.length - groups[x].list.length).map(k => `<label class="row" style="gap:8px"><input type="radio" name="orgPick" value="${esc(k)}" ${k === cur || (!cur && k === keys[0]) ? 'checked' : ''}> <span><b>${esc(groups[k].name)}</b> <span class="small muted">· ${groups[k].list.length} response${groups[k].list.length > 1 ? 's' : ''}</span></span></label>`).join('')}</div>
         <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn" data-close>Cancel</button><button class="btn" data-act="orgPickIns">Send all to Industry insights</button><button class="btn pri" data-act="orgPickGo">Import selected organisation</button></div>`);
@@ -4469,7 +4676,7 @@ const App = {
     if (kind === 'base') {
       const b = this.ws.baseline, B = assessBaseline(b);
       return [`ENTERPRISE AI NAVIGATOR — AI readiness baseline: ${b.meta.org}`, `${b.meta.scope} · ${b.meta.date}`, '',
-        `Profile: ${B.arche ? B.arche.name + ' — ' + B.arche.d : 'incomplete'}`, `Journey readiness ${B.index == null ? '—' : Math.round(B.index)}/100 · reliable through Stage ${B.reach} · target through Stage ${B.targetReach}`,
+        `Profile: ${B.arche ? B.arche.name + ' — ' + B.arche.d : 'incomplete'}`, `AI readiness score ${B.index == null ? '—' : Math.round(B.index)}/100 · reliable through Stage ${B.reach} · target through Stage ${B.targetReach}`,
         ...NAV.bgroups.map(g => `  ${g.name}: ${BASE.lvl(B.groups[g.id].cur)} → ${B.groups[g.id].tgt.toFixed(1)}`), '', 'Now:', ...B.road.now.map(x => `  - ${x.cap.n} (${x.cur} → ${x.t})`)].join('\n');
     }
     if (kind === 'gng') {
