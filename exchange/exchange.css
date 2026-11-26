@@ -1,0 +1,58 @@
+/* SymVaya Exchange pages: sit on top of /css/style.css */
+.xch p,.xch h1,.xch h2,.xch h3,.xch ul,.xch ol{margin-bottom:0}
+.xch h1,.xch h2{font-weight:500}
+.xch h3{font-weight:600}
+.xch ul,.xch ol{margin-top:0}
+.xform .field{margin-bottom:0}
+.xform textarea{min-height:0}
+.xch a:not([style*="background"]):not(.btn){color:#2459C8}
+.xch .ink a,.xch [style*="background:#0E1A2C"] a:not([style*="background"]){color:inherit}
+.xch>section{padding-left:var(--gutter)!important;padding-right:var(--gutter)!important}
+/* forms */
+.card-form{min-width:0;background:#FFFFFF;border:1px solid #D8DEE8;border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:18px}
+.xform label{font-size:14px;font-weight:600;color:#18212F}
+.xform input[type=text],.xform input[type=email],.xform input[type=tel],.xform input[type=url],.xform select,.xform textarea{font:inherit;font-size:16px;padding:12px 14px;border:1px solid #8E9BB3;border-radius:8px;width:100%;background:#FFFFFF;color:#18212F}
+.xform textarea{resize:vertical;line-height:1.5}
+.xform ::placeholder{color:#6B7891}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.row>.field{flex:1 1 220px}
+.xform .row{display:flex;flex-wrap:wrap;gap:18px}
+.xform fieldset{border:0;border-top:1px solid #D8DEE8;margin:0;padding:18px 0 0;display:flex;flex-direction:column;gap:18px;min-width:0}
+.xform fieldset[hidden]{display:none}
+.xform legend{font-family:Fraunces,Georgia,serif;font-size:19px;font-weight:600;padding:0 0 4px}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:#0E1A2C}
+.check label{font-weight:400!important;font-size:14px;line-height:1.5}
+.req{color:#5B6B85}
+.hint{font-size:13px;line-height:1.5;color:#5B6B85}
+.notice{font-size:13px;line-height:1.55;color:#3A4458;background:#F5F7FB;border:1px solid #D8DEE8;border-radius:10px;padding:14px 16px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.btn{align-self:flex-start;background:#0E1A2C;color:#FFFFFF;border:0;border-radius:10px;padding:16px 28px;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+.btn:hover{background:#15253C}
+.btn[disabled]{opacity:.6;cursor:wait}
+.status{font-size:15px;line-height:1.5}
+.status.err{color:#A3261B}
+.done{background:#FFFFFF;border:2px solid #1F7A4D;border-radius:14px;padding:28px}
+.done h3{font-size:24px}
+.done p{font-size:16px;line-height:1.6;margin-top:10px;color:#3A4458}
+
+/* privacy page */
+.prose h2{font-size:26px;margin-top:40px}
+.prose h2:first-child{margin-top:0}
+.prose p,.prose li{font-size:17px;line-height:1.65;color:#2A3244}
+.prose p{margin-top:12px}
+.prose ul{margin:12px 0 0;padding-left:22px}
+.prose li{margin-top:8px}
+
+/* small screens */
+@media (max-width:900px){
+  [style*="minmax(420px"]{grid-template-columns:1fr!important}
+}
+@media (max-width:640px){
+  .xch h1{font-size:36px!important}
+  .xch h2{font-size:28px!important}
+  [style*="padding:80px 24px"],[style*="padding:72px 24px"]{padding-top:52px!important;padding-bottom:52px!important}
+  .card-form{padding:20px}
+  [style*="font-size:26px;margin-top:20px"]{font-size:21px!important}
+  [style*="flex:0 0 130px"]{flex-basis:96px!important}
+}

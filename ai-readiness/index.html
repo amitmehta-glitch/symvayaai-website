@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Readiness Assessment · Enterprise AI Navigator</title>
+<meta name="description" content="A free, 15-minute assessment of how ready your organisation is to deliver AI — across the six stages of an AI project. From Enterprise AI Navigator.">
+<meta property="og:title" content="How ready is your organisation to deliver AI?">
+<meta property="og:description" content="33 short questions across the six stages of an AI project. Free, about 15 minutes, no login. From Enterprise AI Navigator.">
+<link rel="canonical" href="https://symvayaai.com/ai-readiness/">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0e2a44; --ink-2: #173a5b; --gold: #d9a441; --gold-hi: #e9bd63; --paper: #f6f7f9; --line: #dde3ea; --text: #1c2b3a; --muted: #5a6b7d; --white: #fff; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; font: 17px/1.6 "Inter", "Helvetica Neue", Arial, sans-serif; color: var(--text); background: var(--paper); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  :focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 3px; border-radius: 4px; }
+
+  header.top { background: var(--ink); color: #fff; }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .wordmark { font-family: "Fraunces", Georgia, serif; font-size: 22px; font-weight: 600; text-decoration: none; color: #fff; }
+  .wordmark { display:inline-flex; align-items:center; gap:10px; }
+  .wordmark img { height:34px; width:auto; display:block; }
+  header.top nav a { color: rgba(255,255,255,.82); text-decoration: none; font-size: 15px; margin-left: 22px; }
+  header.top nav a:hover { color: #fff; }
+
+  .hero { background: var(--ink); color: #fff; padding: 64px 0 0; overflow: hidden; }
+  .hero .wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: end; }
+  .hero h1 { color: #fff; font-size: clamp(36px, 5vw, 58px); line-height: 1.08; max-width: 15ch; }
+  .hero p.lede { color: rgba(255,255,255,.82); font-size: 19px; max-width: 54ch; margin: 22px 0 30px; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--gold); color: #10202f; font-weight: 700; text-decoration: none; padding: 15px 26px; border-radius: 8px; font-size: 17px; }
+  .cta:hover { background: var(--gold-hi); }
+  .facts { color: rgba(255,255,255,.66); font-size: 14.5px; margin: 16px 0 64px; }
+  .ghost { color: #fff; text-decoration: underline; text-underline-offset: 4px; margin-left: 18px; font-size: 16px; }
+
+  /* the journey: the one memorable element */
+  .journey { position: relative; padding: 0 0 64px; }
+  .journey ol { list-style: none; margin: 0; padding: 0; position: relative; }
+  .journey ol::before { content: ""; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 2px; background: linear-gradient(var(--gold-hi), rgba(233,189,99,.15)); }
+  .journey li { position: relative; padding: 0 0 18px 50px; }
+  .journey li:last-child { padding-bottom: 0; }
+  .journey .n { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--gold-hi); background: var(--ink); color: var(--gold-hi); font: 600 14px/28px "Inter", sans-serif; text-align: center; }
+  .journey b { display: block; font-family: "Fraunces", serif; font-weight: 600; font-size: 19px; color: #fff; line-height: 1.25; }
+  .journey span { color: rgba(255,255,255,.66); font-size: 14.5px; }
+  .journey li.f .n { border-style: dashed; }
+
+  section.band { padding: 80px 0; }
+  section.band h2 { font-size: clamp(28px, 3.4vw, 38px); max-width: 24ch; }
+  section.band p.sub { color: var(--muted); max-width: 62ch; margin: 14px 0 0; }
+  .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 40px; }
+  .three article { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 26px; }
+  .three h3 { font-size: 21px; margin-bottom: 10px; }
+  .three p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  .how { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin-top: 40px; counter-reset: s; }
+  .steps div { counter-increment: s; border-top: 3px solid var(--ink); padding-top: 16px; }
+  .steps div::before { content: counter(s); font-family: "Fraunces", serif; font-size: 30px; color: var(--gold); display: block; line-height: 1; margin-bottom: 10px; }
+  .steps h3 { font-size: 18px; margin-bottom: 6px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 15px; }
+  .invite { margin-top: 36px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .invite input { flex: 1 1 340px; max-width: 520px; font: inherit; font-size: 15px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--paper); }
+  .btn2 { font: inherit; font-size: 15px; font-weight: 600; padding: 11px 18px; border-radius: 8px; border: 1px solid var(--ink); background: #fff; color: var(--ink); cursor: pointer; }
+  .btn2:hover { background: var(--ink); color: #fff; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  dl { margin: 28px 0 0; }
+  dt { font-weight: 600; color: var(--ink); margin-top: 18px; }
+  dd { margin: 4px 0 0; color: var(--muted); font-size: 15.5px; }
+  .note { background: #fff; border-left: 4px solid var(--gold); border-radius: 0 10px 10px 0; padding: 22px 24px; }
+  .note h3 { font-size: 20px; margin-bottom: 8px; }
+  .note p { margin: 8px 0 0; color: var(--muted); font-size: 15.5px; }
+
+  .closing { background: var(--ink); color: #fff; text-align: left; }
+  .closing h2 { color: #fff; }
+  .band.closing p.sub, .closing .wrap p.sub { color: rgba(255,255,255,.82); }
+  .closing .cta { margin-top: 28px; }
+  footer { background: #0a2033; color: rgba(255,255,255,.6); font-size: 14px; padding: 26px 0; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  footer a { color: rgba(255,255,255,.8); }
+
+  @media (max-width: 900px) {
+    .hero .wrap, .split { grid-template-columns: 1fr; }
+    .three, .steps { grid-template-columns: 1fr 1fr; }
+    .journey { padding-bottom: 48px; }
+  }
+  @media (max-width: 600px) {
+    .three, .steps { grid-template-columns: 1fr; }
+    header.top nav a:not(.keep) { display: none; }
+    .ghost { display: inline-block; margin: 16px 0 0; }
+  }
+.navchip { display:inline-flex; align-items:center; background:#fff; border-radius:8px; padding:7px 12px; }
+  .navchip img { height:21px; width:auto; display:block; }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="wordmark" href="/navigator.html" aria-label="Enterprise AI Navigator"><span class="navchip"><img src="/assets/enterprise-ai-navigator.png" alt="Enterprise AI Navigator" width="166" height="21"></span></a>
+  <nav aria-label="Site"><a href="/navigator.html">About the Navigator</a><a href="#how">How it works</a><a class="keep" href="assessment.html">Start</a></nav>
+</div></header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <h1>How ready is your organisation to deliver AI?</h1>
+      <p class="lede">A free assessment of the capabilities that decide whether AI projects reach production and pay back — answered by your own leaders, in about 15 minutes.</p>
+      <a class="cta" href="assessment.html">Start the assessment</a><a class="ghost" href="#how">See how it works</a>
+      <p class="facts">33 short questions · six stages of an AI project · no login · finish on any device</p>
+      <p class="facts">Part of the Enterprise AI Navigator India AI Readiness Benchmark: every organisation that takes part also sees where it stands against peers in its industry.</p>
+    </div>
+    <div class="journey" aria-label="What the assessment covers">
+      <ol>
+        <li><span class="n">1</span><b>Frame the problem</b><span>Strategy, value cases and decision gates</span></li>
+        <li><span class="n">2</span><b>Find the data</b><span>What exists, who owns it, whether you may use it</span></li>
+        <li><span class="n">3</span><b>Shape the data</b><span>Quality, pipelines and labelling</span></li>
+        <li><span class="n">4</span><b>Build the solution</b><span>People, platforms and partners</span></li>
+        <li><span class="n">5</span><b>Prove it works</b><span>Testing, responsible AI and release approval</span></li>
+        <li><span class="n">6</span><b>Run and improve</b><span>Monitoring, adoption and value tracking</span></li>
+        <li class="f"><span class="n">+</span><b>Foundations</b><span>Governance, leadership, ways of working, security</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>What your organisation gets</h2>
+    <p class="sub">We combine the answers from your leadership team, compare them with peers in your industry, and walk you through the results in a short session.</p>
+    <div class="three">
+      <article><h3>Where you stand</h3><p>A readiness profile across the six stages, showing how far your organisation can run AI reliably today — and where it stalls.</p></article>
+      <article><h3>Where leaders disagree</h3><p>Business, technology and risk leaders often see readiness very differently. We show exactly where, and where nobody knows.</p></article>
+      <article><h3>What to fix first</h3><p>The gaps between where you are and where you want to be, sequenced into a Now / Next / Later roadmap.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="band how" id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div><h3>Share the link</h3><p>Send this page to three to five leaders across business, technology, data, risk and finance.</p></div>
+      <div><h3>Each person answers</h3><p>28 short readiness questions, each with five plain statements to choose from, then 5 quick questions on results. “Don’t know” is a useful answer. You can stop and finish later, on any device.</p></div>
+      <div><h3>Press Send</h3><p>At the end, each response goes straight to the Enterprise AI Navigator team. Respondents can keep a copy.</p></div>
+      <div><h3>Review together</h3><p>We combine the answers and take you through your readiness report and roadmap.</p></div>
+    </div>
+    <div class="invite">
+      <input id="link" type="text" readonly value="https://symvayaai.com/ai-readiness/" aria-label="Link to share with colleagues">
+      <button class="btn2" type="button" id="copy">Copy link for colleagues</button>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap split">
+    <div>
+      <h2>Questions people ask</h2>
+      <dl>
+        <dt>Who should answer?</dt><dd>Anyone who can speak for how AI work is chosen, built or run: business unit heads, the CIO or CTO, data, risk and compliance, operations and finance leaders.</dd>
+        <dt>Does it cost anything?</dt><dd>No. The assessment is free.</dd>
+        <dt>Should I answer for my best project?</dt><dd>No — answer for what is true for most AI work in your organisation, or for the business unit you name.</dd>
+        <dt>Can I stop and come back?</dt><dd>Yes. Answers save in your browser as you go. To finish on another device, use “Continue on another device” at the bottom of any page: it gives you a link that carries your answers.</dd>
+      </dl>
+    </div>
+    <div class="note">
+      <h3>Your data</h3>
+      <p>Enterprise AI Navigator is responsible for your data. We collect your name, role, seniority, organisation, its industry, size and type, and your answers. We use them to prepare your organisation’s readiness report.</p>
+      <p>Before you send your answers, you choose, separately, whether your answers may be used <b>anonymised and combined with other organisations</b> for the India benchmark, whether your organisation may be named as a participant, and whether we may contact you about the results. All three are optional and none changes your report. Names, emails and answers by organisation are never published.</p>
+      <p>To see or delete your data, write to <a href="mailto:amitmehta@symvayaai.com">amitmehta@symvayaai.com</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band closing">
+  <div class="wrap">
+    <h2>Fifteen minutes now saves a stalled AI programme later.</h2>
+    <p class="sub">Start with your own view, then share the link with your colleagues.</p>
+    <a class="cta" href="assessment.html">Start the assessment</a>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><span>© Enterprise AI Navigator</span><span><a href="/navigator.html">About the Navigator</a> · <a href="mailto:amitmehta@symvayaai.com">amitmehta@symvayaai.com</a></span></div></footer>
+
+<script>
+  document.getElementById('copy').addEventListener('click', async function () {
+    const i = document.getElementById('link');
+    try { await navigator.clipboard.writeText(i.value); this.textContent = 'Link copied'; }
+    catch (e) { i.focus(); i.select(); this.textContent = 'Press Ctrl+C to copy'; }
+    setTimeout(() => { this.textContent = 'Copy link for colleagues'; }, 2500);
+  });
+</script>
+</body>
+</html>
