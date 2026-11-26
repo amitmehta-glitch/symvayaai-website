@@ -2452,7 +2452,7 @@ const SECTIONS = NAV.bgroups.map(g => g.id); // P1..P6, F
 const STEPS = ['intro', 'ambition'].concat(SECTIONS).concat(['outcomes', 'review']);
 const Q = {
   s: null, dl: null, done: false,
-  blank() { return { resp: { name: '', email: '', role: '', org: '', unit: '', industry: '', size: '', region: '', seniority: '', ownership: '', consent: false, consentNamed: false, consentContact: false }, ambition: null, patterns: [], answers: {}, outcomes: {}, pre: null, invitedBy: '', lists: 5, step: 0, id: 'r' + Math.random().toString(36).slice(2, 10), started: new Date().toISOString() }; },
+  blank() { return { resp: { name: '', email: '', role: '', org: '', unit: '', industry: '', size: '', region: '', seniority: '', ownership: '', consent: false, consentNamed: false, consentContact: false, emailCopy: true }, ambition: null, patterns: [], answers: {}, outcomes: {}, pre: null, invitedBy: '', lists: 5, step: 0, id: 'r' + Math.random().toString(36).slice(2, 10), started: new Date().toISOString() }; },
   load() { try { const r = localStorage.getItem(QKEY); const x = r ? JSON.parse(r) : null; if (x) { x.outcomes = x.outcomes || {}; ['seniority', 'ownership'].forEach(k => { if (x.resp[k] == null) { x.resp[k] = ''; x.step = 0; } }); this.migrate(x); } return x; } catch (e) { return null; } },
   /* Progress saved before the November 2026 lists: move answers across, and ask again where there is no clear match */
   migrate(x) { if (!x || !x.resp || x.lists >= 5) return x; let lost = false;
@@ -2623,7 +2623,7 @@ const Q = {
       <div class="grid2"><div class="card"><div class="tbl-wrap"><table class="t"><thead><tr><th>Section</th><th class="n">Answered</th><th class="n">Don’t know</th><th></th></tr></thead><tbody>
         <tr><td>Ambition and AI types</td><td class="n">${s.ambition != null ? '✓' : '—'}</td><td class="n"></td><td><button class="btn sm" data-q="go" data-i="1">Edit</button></td></tr>${rows}<tr><td>Results so far</td><td class="n">${Object.keys(s.outcomes || {}).length} / ${NAV.outcomeQs.length}</td><td class="n"></td><td><button class="btn sm" data-q="go" data-i="${STEPS.indexOf('outcomes')}">Edit</button></td></tr></tbody></table></div></div>
       <div class="card stack"><h3>Send your response</h3><p class="small">${this.canSend() ? 'Press send and your answers go to the Enterprise AI Navigator team, who combine them with your colleagues’ answers into your organisation’s report. You can download a copy afterwards.' : 'Download your response file, then email it to ' + (this.s.invitedBy ? esc(this.s.invitedBy) : 'the person who invited you') + '. It contains your details and your answers — nothing else.'}</p>
-        <div class="consents"><label class="consent" for="r_consent"><input type="checkbox" id="r_consent" data-r="consent" ${s.resp.consent ? 'checked' : ''}><span>${esc(NAV.consentText.research)}</span></label>
+        <div class="consents">${this.canSend() ? `<label class="consent" for="r_emailCopy"><input type="checkbox" id="r_emailCopy" data-r="emailCopy" ${s.resp.emailCopy !== false ? 'checked' : ''}><span>Email me a copy of my answers${s.resp.email ? ' at ' + esc(s.resp.email.trim()) : ''}.</span></label>` : ''}<label class="consent" for="r_consent"><input type="checkbox" id="r_consent" data-r="consent" ${s.resp.consent ? 'checked' : ''}><span>${esc(NAV.consentText.research)}</span></label>
           <label class="consent" for="r_consentNamed"><input type="checkbox" id="r_consentNamed" data-r="consentNamed" ${s.resp.consentNamed ? 'checked' : ''}><span>${esc(NAV.consentText.named)}</span></label>
           <label class="consent" for="r_consentContact"><input type="checkbox" id="r_consentContact" data-r="consentContact" ${s.resp.consentContact ? 'checked' : ''}><span>${esc(NAV.consentText.contact)}</span></label>
           <p class="tiny muted">All three are optional; your organisation’s report is the same either way. ${esc(NAV.consentText.notice)}</p></div>
@@ -2654,8 +2654,12 @@ const Q = {
     const p = this.payload(), r = p.respondent;
     const body = new URLSearchParams({ 'form-name': 'readiness-response', name: r.name, email: r.email, organisation: r.org, code: RCODE.enc(p), role: r.roleName, industry: r.industryName, size: r.sizeName, region: r.regionName, seniority: r.seniorityName, ownership: r.ownershipName, research_consent: p.consent.research ? 'yes' : 'no', named_consent: p.consent.named ? 'yes' : 'no', contact_consent: p.consent.contact ? 'yes' : 'no', wave: p.wave, invited_by: p.invitedBy, response: JSON.stringify(p) });
     this.sending = true; this.render();
-    try { const res = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
-      if (!res.ok) throw new Error('HTTP ' + res.status); this.sent = true; this.resumed = false; try { localStorage.removeItem(QKEY); } catch (e2) { /* private mode */ } toast('Sent to the Enterprise AI Navigator team'); }
+    /* The server files the response by company and emails the copy; the Netlify form is kept as a backup. Either one is enough. */
+    let apiOk = false, formOk = false; this.emailed = false;
+    try { const ra = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ response: p, emailCopy: this.s.resp.emailCopy !== false }) });
+      const o = await ra.json().catch(() => ({})); if (ra.ok && o.ok) { apiOk = true; this.emailed = !!o.emailed; } } catch (e) { /* server not reachable: the form still counts */ }
+    try { const rf = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() }); formOk = rf.ok; } catch (e) { /* network */ }
+    try { if (!apiOk && !formOk) throw new Error('not sent'); this.sent = true; this.resumed = false; try { localStorage.removeItem(QKEY); } catch (e2) { /* private mode */ } toast('Sent to the Enterprise AI Navigator team'); }
     catch (e) { this.sendFail = true; toast('Not sent. Check your connection and try again.'); }
     this.sending = false; this.render();
   },
@@ -2666,7 +2670,7 @@ const Q = {
     const to = this.s.invitedBy ? esc(this.s.invitedBy) : 'the person who invited you';
     const mailTo = `<a href="mailto:${esc(NAV.contactEmail)}">${esc(NAV.contactEmail)}</a>`;
     const head = this.canSend()
-      ? (this.sent ? `<h1>Done. Your response has reached the Enterprise AI Navigator team</h1><p class="why">Thank you. Your answers will be combined with your colleagues’ to build your organisation’s readiness report.</p>`
+      ? (this.sent ? `<h1>Done. Your response has reached the Enterprise AI Navigator team</h1><p class="why">Thank you. Your answers will be combined with your colleagues’ to build your organisation’s readiness report.${this.emailed ? ` We have emailed a copy of your answers to ${esc(p.respondent.email)}.` : ''}</p>`
         : this.sending ? `<h1>Sending your response…</h1><p class="why">This takes a moment.</p>`
         : `<h1>${this.sendFail ? 'Sending did not work. Please try again' : 'One last step: send your response'}</h1><p class="why">${this.sendFail ? `Check your connection and press Send again. If it still fails, download your answers and email the file to ${mailTo}.` : 'Press Send to share your answers with the Enterprise AI Navigator team.'}</p>`)
       : `<h1>One last step: send your response file</h1><p class="why">${this.dl ? 'Your file should have downloaded. If it did not, download it again or copy the response code below.' : 'Copy your response code below and paste it into an email.'} Send it to ${to}.</p>`;

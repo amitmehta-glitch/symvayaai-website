@@ -3406,9 +3406,16 @@ BASE.reportHTML = function (b) {
     ${KEY.appendix('base')}
     <p class="tiny muted">The capability model, maturity anchors, journey readiness, archetypes and roadmap logic are Enterprise AI Navigator methods. Enterprise AI Navigator is independent. It is not affiliated with, endorsed by or licensed from Project Management Institute, Inc. (PMI) and contains no PMI course content. Its six-stage AI lifecycle follows the CRISP-DM tradition that the PMI-CPMAI™ methodology also builds on. “PMI-CPMAI” is a mark of Project Management Institute, Inc.</p></div>`;
 };
+/* Optional opening summary for page 1 of the Word report: written by the team, or drafted by AI on the server and then edited */
+BASE.summaryCard = function (b) {
+  const server = /^https?:$/.test(location.protocol) && /symvayaai\.com|localhost|127\.0\.0\.1|netlify\.app/.test(location.host);
+  return `<div class="card stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3>Opening summary (optional)</h3><p class="small muted" style="margin-top:4px">Appears on page 1 of the Word report, under the score. ${server ? 'Draft it with AI from this report’s findings, then read and edit it: it goes to the customer in your name.' : 'Write a few sentences, or leave it empty.'}</p></div>${server ? `<button class="btn" data-act="aiDraft">${(b.aiSummary || '').trim() ? 'Draft again with AI' : 'Draft with AI'}</button>` : ''}</div>
+    ${UI.txt('@b.aiSummary', b.aiSummary || '', 'A short paragraph for the leadership team…', 6)}${b.aiSummaryAt ? `<p class="tiny muted">AI draft made ${esc(new Date(b.aiSummaryAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}. Edits you make here are kept.</p>` : ''}</div>`;
+};
 BASE.views.report = function () {
   return `<div class="stack"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('report')}</span><h2>Gap analysis report</h2><p>A board-ready report: executive summary, where the organisation is on the AI journey, its target, the gaps stage by stage, leadership alignment, visibility gaps and the roadmap.</p></div>
     <div class="row"><button class="btn" data-act="copySummary" data-k="base">Copy text summary</button>${App.dl ? '<button class="btn pri" data-act="baseDocx">Download customer report (Word)</button>' : ''}${App.dl ? '<button class="btn" data-act="download" data-k="baseReport">Download report (.html)</button>' : ''}</div></div>
+    ${BASE.summaryCard(BASE.b())}
     <div class="card">${BASE.reportHTML(BASE.b())}</div></div>`;
 };
 
@@ -4004,6 +4011,7 @@ const RPT = {
       table([2300, 6726], [[cell(P_([img(ring, 130)], { alignment: D.AlignmentType.CENTER }), 2300, { noBorder: true }),
         cell([P_([R('AI readiness score', { bold: true, color: C.navy, size: 26 })], { spacing: { after: 60 } }),
           P_([R(A.scored ? 'Measured across the six stages of an AI project; 100 means every stage is optimised. The weakest stage holds the score down.' : 'No score yet: there are no answers to score.', { size: 19, color: C.muted })])], 6726, { noBorder: true })]]),
+      ...((b.aiSummary || '').trim() ? [P_([R(b.aiSummary.trim(), { size: 22 })], { spacing: { before: 120, after: 80, line: 312 } }), P_([R(b.aiSummaryAt ? 'Drafted with AI from the findings in this report and reviewed by the Enterprise AI Navigator team.' : '', { size: 16, color: C.muted, italics: true })], { spacing: { after: 120 } })] : []),
       H2('What we found'),
       ...SECS.map(s => P_([R(s.no + '   ', { bold: true, color: C.gold }), R(s.head)], { spacing: { after: 100 }, indent: { left: 540, hanging: 540 } })),
     ];
@@ -4461,6 +4469,7 @@ const App = {
     document.body.classList.add('boot');
     this.render();
     BENCH.fetchHosted(() => this.render());
+    this.handoff();
     setTimeout(() => document.body.classList.remove('boot'), 1600);
     this.bind();
     Demo.bind();
@@ -4499,6 +4508,30 @@ const App = {
     this.archiveCurrent(D); delete D.list[cid];
     if (!Customers.save(D)) { UI.toast('This browser is out of storage. Export a customer and delete it, then try again.'); this.render(); return; }
     this.ws = this.normalize(next.ws); this.ui = {}; this._snap = {}; Store.save(this.ws); window.scrollTo(0, 0); this.render(); UI.toast('Switched to ' + this.custName());
+  },
+  /* Responses opened from the team page (same site): load them into that organisation's customer */
+  handoff() {
+    if (!/[?&]handoff=1/.test(location.search)) return;
+    let h = null; try { h = JSON.parse(localStorage.getItem('ean.handoff') || 'null'); localStorage.removeItem('ean.handoff'); } catch (e) { /* storage blocked */ }
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
+    if (!h || !Array.isArray(h.responses) || !h.responses.length || Date.now() - h.at > 10 * 60 * 1000) { UI.toast('Nothing to open. Open the organisation again from the team page.'); return; }
+    const names = {}; h.responses.forEach(r => { const o = String((r.respondent && r.respondent.org) || '').trim(); if (o) names[o] = (names[o] || 0) + 1; });
+    const org = Object.keys(names).sort((x, y) => names[y] - names[x])[0] || 'New organisation', norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (norm(this.custName()) !== norm(org)) { const L = (Customers.load() || {}).list || {}; const hit = Object.keys(L).find(cid => norm(L[cid].name) === norm(org)); if (hit) this.switchCustomer(hit); else this.newCustomer(org, ''); }
+    this._orgPick = true; try { this.importResponses([JSON.stringify(h.responses)]); } finally { this._orgPick = false; }
+  },
+  async aiDraft(token) {
+    const b = this.ws.baseline, I = RPT.insights(b);
+    if (!I.A.scored) { UI.toast('Combine the responses first: there is nothing to summarise yet.'); return; }
+    const facts = { organisation: I.org, readinessScore: I.A.index == null ? null : Math.round(I.A.index), goal: I.amb.name, basis: I.base,
+      sections: I.sections.map(x => ({ headline: x.head, found: x.found, meaning: x.means, takeaway: x.take })), plan: { headline: I.p7.head, firstActions: I.A.road.now.map(x => x.cap.n) } };
+    UI.toast('Drafting the summary…');
+    try { const r = await fetch('/api/team/summary', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-team-token': token }, body: JSON.stringify(facts) });
+      const out = await r.json().catch(() => ({}));
+      if (r.status === 401) { try { sessionStorage.removeItem('ean.team'); } catch (e) { /* ignore */ } UI.toast('Wrong team password. Try again.'); return; }
+      if (!r.ok || !out.summary) { UI.toast(out.error || 'The summary could not be drafted. Try again later.'); return; }
+      b.aiSummary = out.summary; b.aiSummaryAt = new Date().toISOString(); this.persist(); this.render(); UI.toast('Draft ready. Read and edit it before you send the report.');
+    } catch (e) { UI.toast('Could not reach the server. Check your connection.'); }
   },
   newCustomer(org, uc) {
     const D = Customers.load(); const hadData = this.hasData(); if (hadData) this.archiveCurrent(D);
@@ -4971,6 +5004,9 @@ const App = {
         case 'confirmDel': this.ws.projects.splice(this.ws.active, 1); if (!this.ws.projects.length) { const s = NAV.blank(); s.id = uid('p'); this.ws.projects.push(s); } this.ws.active = Math.max(0, this.ws.active - 1); this.closeModal(); rr(); break;
         case 'importText': { const t = ($('#impText') || {}).value || ''; this.closeModal(); this.importJSON(t); break; }
         case 'copyWs': this.copy(JSON.stringify(this.ws, null, 1), 'Workspace JSON copied'); break;
+        case 'aiDraft': { let t = ''; try { t = sessionStorage.getItem('ean.team') || ''; } catch (e) { /* ignore */ } if (t) { this.aiDraft(t); break; }
+          this.modal(`<h3>Team password</h3><p class="small">The AI summary runs on the Enterprise AI Navigator server. Enter the team password (the TEAM_TOKEN set in Netlify). It is kept in this tab until you close it.</p><label class="f"><span>Team password</span><input type="password" id="teamTok" autocomplete="current-password"></label><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn" data-close>Cancel</button><button class="btn pri" data-act="aiDraftGo">Draft the summary</button></div>`); setTimeout(() => { const i = document.getElementById('teamTok'); if (i) i.focus(); }, 50); break; }
+        case 'aiDraftGo': { const i = document.getElementById('teamTok'); const t = i ? i.value.trim() : ''; if (!t) break; try { sessionStorage.setItem('ean.team', t); } catch (e) { /* ignore */ } this.closeModal(); this.aiDraft(t); break; }
         case 'copySummary': this.copy(this.textSummary(d.k), 'Summary copied'); break;
         case 'download': {
           const slug = (p.meta.project || 'ai-use-case').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'use-case';

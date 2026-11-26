@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Team · Enterprise AI Navigator responses</title>
+<style>
+  :root { --navy: #0F2235; --sea: #1E5A82; --gold: #C99632; --line: #D8E0E5; --muted: #586A7B; --red: #B4413C; --bg: #F4F6F8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 Inter, Arial, sans-serif; color: #1C2B39; background: var(--bg); }
+  header { background: var(--navy); color: #fff; padding: 16px 24px; }
+  header b { color: #E3B05A; font-size: 13px; display: block; }
+  header h1 { margin: 2px 0 0; font: 400 22px Georgia, serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
+  label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
+  input[type=password] { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; width: min(420px, 100%); }
+  button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  button.pri { background: var(--navy); color: #fff; border-color: var(--navy); }
+  button.danger { color: var(--red); border-color: #E7C3C0; }
+  button:focus-visible, input:focus-visible { outline: 3px solid #E3B05A; outline-offset: 2px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  td.n { text-align: right; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .people td { font-size: 13px; background: #FAFBFC; }
+  #msg { min-height: 20px; }
+  .err { color: var(--red); }
+</style>
+</head>
+<body>
+<header><b>Enterprise AI Navigator</b><h1>Assessment responses</h1></header>
+<main>
+  <div class="card" id="login">
+    <label for="tok">Team password</label>
+    <div class="row"><input type="password" id="tok" autocomplete="current-password"><button class="pri" id="go">Show responses</button></div>
+    <p class="muted">The password is the TEAM_TOKEN set in Netlify. It is kept in this browser tab only, until you close it.</p>
+  </div>
+  <div id="msg" role="status"></div>
+  <div class="card" id="list" hidden>
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0;font:400 19px Georgia,serif">Organisations</h2><button id="refresh">Refresh</button></div>
+    <p class="muted">Responses are grouped by company email domain. Open an organisation in the tool to build its report; reports are sent only after the team has reviewed them.</p>
+    <table><thead><tr><th>Organisation</th><th>Domain</th><th class="n">Responses</th><th>Last response</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id), esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let token = ''; try { token = sessionStorage.getItem('ean.team') || ''; } catch (e) { /* private mode */ }
+  const say = (t, err) => { $('msg').innerHTML = t ? `<p class="${err ? 'err' : 'muted'}">${esc(t)}</p>` : ''; };
+  const api = async (path, opt) => { const r = await fetch('/api/team/' + path, Object.assign({ headers: { 'x-team-token': token } }, opt || {}));
+    const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b.error || 'Error ' + r.status); return b; };
+  const when = (t) => t ? new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  let open = {};
+  async function load() {
+    say('Loading…');
+    try { const { orgs } = await api('orgs'); say(orgs.length ? '' : 'No responses yet.'); $('login').hidden = true; $('list').hidden = false;
+      $('rows').innerHTML = orgs.map(o => `<tr><td><b>${esc(o.name)}</b></td><td>${esc(o.domain)}</td><td class="n">${o.count}</td><td>${when(o.updated)}</td>
+        <td><div class="row"><button class="pri" data-open="${esc(o.domain)}">Open in the tool</button><button data-dl="${esc(o.domain)}">Download</button><button data-who="${esc(o.domain)}">${open[o.domain] ? 'Hide people' : 'People'}</button></div></td></tr>
+        ${open[o.domain] ? o.people.map(p => `<tr class="people"><td colspan="3">${esc(p.name)} <span class="muted">· ${esc(p.role || '')}${p.seniority ? ' · ' + esc(p.seniority) : ''}</span></td><td>${when(p.at)}</td><td><button class="danger" data-del="${esc(o.domain)}" data-person="${esc(p.person)}" data-name="${esc(p.name)}">Delete response</button></td></tr>`).join('') + `<tr class="people"><td colspan="5"><button class="danger" data-delorg="${esc(o.domain)}">Delete this organisation and all its responses</button></td></tr>` : ''}`).join('');
+    } catch (e) { say(e.message, true); if (/password/i.test(e.message)) { token = ''; try { sessionStorage.removeItem('ean.team'); } catch (x) {} $('login').hidden = false; $('list').hidden = true; } }
+  }
+  const responsesOf = async (d) => (await api('responses?domain=' + encodeURIComponent(d))).responses;
+  $('go').onclick = () => { token = $('tok').value.trim(); try { sessionStorage.setItem('ean.team', token); } catch (e) {} load(); };
+  $('tok').onkeydown = (e) => { if (e.key === 'Enter') $('go').click(); };
+  $('refresh').onclick = load;
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+    try {
+      if (d.open) { const list = await responsesOf(d.open); localStorage.setItem('ean.handoff', JSON.stringify({ at: Date.now(), responses: list })); window.open('/navigator/tool/?handoff=1', '_blank', 'noopener'); say(`Opened ${list.length} response${list.length === 1 ? '' : 's'} in the tool, in a new tab.`); }
+      if (d.dl) { const list = await responsesOf(d.dl); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(list, null, 1)], { type: 'application/json' })); a.download = `responses-${d.dl}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+      if (d.who) { open[d.who] = !open[d.who]; load(); }
+      if (d.del) { if (!confirm(`Delete ${d.name}'s response from ${d.del}? This cannot be undone.`)) return; await api(`responses?domain=${encodeURIComponent(d.del)}&person=${encodeURIComponent(d.person)}`, { method: 'DELETE' }); say('Response deleted.'); load(); }
+      if (d.delorg) { const typed = prompt(`This deletes every response from ${d.delorg} and cannot be undone. Type the domain to confirm.`); if (typed !== d.delorg) return; const r = await api('org?domain=' + encodeURIComponent(d.delorg), { method: 'DELETE' }); say(`Deleted ${r.deleted} response${r.deleted === 1 ? '' : 's'}.`); load(); }
+    } catch (err) { say(err.message, true); }
+  });
+  if (token) load();
+})();
+</script>
+</body>
+</html>
