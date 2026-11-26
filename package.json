@@ -1,0 +1,8 @@
+{
+  "name": "symvayaai-website",
+  "private": true,
+  "description": "SymVaya AI website, with the Enterprise AI Navigator assessment and its server functions",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.11"
+  }
+}
