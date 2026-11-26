@@ -663,6 +663,32 @@ legend.qnum { float: left; width: 100%; margin: 0 0 2px; }
 .qcode textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; margin-top: 10px; }
 
 .qhero a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Respondent's own copy, printed or saved as PDF */
+#printView { display: none; }
+@media print {
+  @page { size: A4; margin: 16mm 15mm; }
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body > *:not(#printView) { display: none !important; }
+  #printView { display: block; font: 10.5pt/1.45 Arial, sans-serif; color: #1C2B39; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #printView .phead { background: #0F2235; color: #fff; padding: 14px 18px; border-radius: 6px; margin-bottom: 16px; }
+  #printView .pbrand { color: #E3B05A; font-weight: 700; font-size: 9.5pt; }
+  #printView h1 { font: 400 20pt Georgia, serif; margin: 4px 0 2px; color: #fff; }
+  #printView .phead p { margin: 0; color: #C9D4DE; font-size: 9.5pt; }
+  #printView h2 { font: 400 14pt Georgia, serif; color: #0F2235; margin: 16px 0 6px; break-after: avoid; }
+  #printView table { width: 100%; border-collapse: collapse; }
+  #printView .pbars td { padding: 3px 0; font-size: 9.5pt; }
+  #printView .pbars td:first-child { width: 34%; }
+  #printView .pbar { background: #EEF1F4; height: 12px; position: relative; }
+  #printView .pbar i { display: block; height: 12px; background: #1E5A82; }
+  #printView .pn { width: 8%; text-align: right; font-weight: 700; }
+  #printView .pt td { border-bottom: 1px solid #D8E0E5; padding: 5px 6px; vertical-align: top; font-size: 9.5pt; }
+  #printView .pt td:first-child { width: 45%; }
+  #printView .pt tr { break-inside: avoid; }
+  #printView .pg td { background: #F2F4F6; font-weight: 700; color: #1E5A82; }
+  #printView .pnote { color: #586A7B; font-size: 8.5pt; margin-top: 2px; }
+  #printView .psmall { color: #586A7B; font-size: 8.5pt; }
+}
 </style></head>
 <body><form name="readiness-response" data-netlify="true" netlify-honeypot="bot-field" hidden><input name="bot-field"><input name="name"><input name="email"><input name="organisation"><input name="code"><input name="role"><input name="industry"><input name="size"><input name="region"><input name="seniority"><input name="ownership"><input name="research_consent"><input name="named_consent"><input name="contact_consent"><input name="wave"><input name="invited_by"><textarea name="response"></textarea></form><div id="app"><p style="padding:40px;font-family:system-ui">Loading questionnaire…</p></div>
 <script>
@@ -1797,6 +1823,11 @@ NAV.patternPlain = {
   goal: 'Optimisation: scheduling, pricing, routing',
   auto: 'Autonomous agents that act without a person'
 };
+/* Personal email services: a work address is needed so colleagues' answers can be grouped by organisation */
+NAV.freeMail = ['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com', 'hotmail.com', 'hotmail.co.in', 'outlook.com', 'outlook.in', 'live.com', 'live.in', 'msn.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'rediffmail.com', 'rediff.com', 'proton.me', 'protonmail.com', 'pm.me', 'zoho.com', 'zohomail.com', 'zohomail.in', 'gmx.com', 'gmx.net', 'mail.com', 'yandex.com', 'yandex.ru', 'tutanota.com', 'tuta.io', 'fastmail.com', 'hey.com', 'inbox.com', 'qq.com', '163.com'];
+NAV.emailDomain = (e) => { const m = String(e || '').trim().toLowerCase().match(/^[^\s@]+@([a-z0-9.-]+\.[a-z]{2,})$/); return m ? m[1] : ''; };
+NAV.workDomain = (e) => { const d = NAV.emailDomain(e); return d && !NAV.freeMail.includes(d) ? d : ''; };
+NAV.workEmailIssue = (e) => { const v = String(e || '').trim(); if (!v) return 'Enter your work email.'; const d = NAV.emailDomain(v); if (!d) return 'Check your email address: it should look like name@company.com.'; if (NAV.freeMail.includes(d)) return 'Please use your work email, not a personal one, so your answers are grouped with your colleagues’.'; return ''; };
 NAV.sure = [{ id: 'assumed', t: 'Best guess' }, { id: 'partial', t: 'Some evidence' }, { id: 'proven', t: 'Can show evidence' }];
 NAV.qIntro = {
   P1: 'How AI work is chosen and funded.',
@@ -2494,7 +2525,9 @@ const Q = {
     bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); }); document.body.appendChild(bg); const i = bg.querySelector('#contLink'); if (i) i.select();
   },
 
-  canLeaveIntro() { const r = this.s.resp; return r.name.trim() && r.role !== '' && r.role != null && r.org.trim() && r.industry !== '' && r.industry != null && r.size !== '' && r.size != null && r.seniority !== '' && r.seniority != null && r.ownership !== '' && r.ownership != null; },
+  introNeed() { return this.canLeaveIntro() ? '' : this.introBasics() ? NAV.workEmailIssue(this.s.resp.email) : 'Fill in the fields marked * to start.'; },
+  canLeaveIntro() { return this.introBasics() && !NAV.workEmailIssue(this.s.resp.email); },
+  introBasics() { const r = this.s.resp; return r.name.trim() && r.role !== '' && r.role != null && r.org.trim() && r.industry !== '' && r.industry != null && r.size !== '' && r.size != null && r.seniority !== '' && r.seniority != null && r.ownership !== '' && r.ownership != null; },
 
   render() {
     const st = STEPS[this.s.step]; const n = this.done33(); const total = this.total();
@@ -2539,7 +2572,7 @@ const Q = {
           <label class="f" for="r_name"><span>Your name *</span><input type="text" id="r_name" data-r="name" value="${esc(r.name)}" autocomplete="name"></label>
           <label class="f" for="r_role"><span>Your role *</span><select id="r_role" data-r="role"><option value="">Choose…</option>${opt(NAV.roles, r.role)}</select></label>
           <label class="f" for="r_seniority"><span>Your seniority *</span><select id="r_seniority" data-r="seniority"><option value="">Choose…</option>${opt(NAV.seniorities, r.seniority)}</select></label>
-          <label class="f" for="r_email"><span>Work email (recommended, so your answers are matched with your colleagues’)</span><input type="text" inputmode="email" id="r_email" data-r="email" value="${esc(r.email)}" autocomplete="email"></label>
+          <label class="f" for="r_email"><span>Work email *</span><input type="email" inputmode="email" id="r_email" data-r="email" value="${esc(r.email)}" autocomplete="email" aria-describedby="emailHint"><span class="tiny muted" id="emailHint">${r.email.trim() && NAV.workEmailIssue(r.email) ? esc(NAV.workEmailIssue(r.email)) : 'Your work address groups your answers with your colleagues’. It is never published.'}</span></label>
           ${orgFields}
           <label class="f" for="r_unit"><span>Business unit or function, if you are answering for one (optional)</span><input type="text" id="r_unit" data-r="unit" value="${esc(r.unit)}"></label></div>
         <div class="card stack"><h3>How to answer</h3><ul class="list">
@@ -2547,7 +2580,7 @@ const Q = {
           <li>Pick the statement closest to the truth. <b>“Don’t know” is a useful answer</b>: it shows where leaders lack visibility.</li>
           <li>Your answers save as you go. To finish on another device, use <b>Continue on another device</b> at the bottom of any page.</li>
           ${this.canSend() ? '<li>At the end, press <b>Send</b>. Your answers go to the Enterprise AI Navigator team.</li>' : `<li>At the end you download a response file and email it to ${this.s.invitedBy ? esc(this.s.invitedBy) : 'the person who invited you'}. Nothing is sent automatically.</li>`}</ul>
-          <p class="small muted" id="introNeed">${this.canLeaveIntro() ? '' : 'Fill in the fields marked * to start.'}</p></div></div>
+          <p class="small muted" id="introNeed">${esc(this.introNeed())}</p></div></div>
       ${this.nav(!!this.canLeaveIntro(), resumed ? 'Continue' : 'Start')}`;
   },
 
@@ -2568,7 +2601,6 @@ const Q = {
         <h3 class="qq">${esc(Qc.q)}</h3>
         <div class="qlevels">${Qc.o.map((t, i) => `<label class="qlevel ${a.l === i + 1 ? 'on' : ''}"><input type="radio" name="l_${c.id}" value="${i + 1}" data-q="ans" data-id="${c.id}" ${a.l === i + 1 ? 'checked' : ''}><span class="qn">${i + 1}</span><span>${esc(t)}</span></label>`).join('')}
           <label class="qlevel dk ${a.l === 0 ? 'on' : ''}"><input type="radio" name="l_${c.id}" value="0" data-q="ans" data-id="${c.id}" ${a.l === 0 ? 'checked' : ''}><span class="qn">?</span><span>Don’t know</span></label></div>
-        ${a.l > 0 ? `<div class="row small qsure"><span class="muted">How sure are you?</span><div class="seg">${NAV.sure.map(x => `<button type="button" class="plain ${(a.s || 'assumed') === x.id ? 'on' : ''}" data-q="sure" data-id="${c.id}" data-v="${x.id}">${x.t}</button>`).join('')}</div></div>` : ''}
         ${a.l != null ? (a.n || this.noteOpen === c.id ? `<label class="f"><span>Comment or example (optional)</span><textarea rows="2" data-q="note" data-id="${c.id}">${esc(a.n || '')}</textarea></label>` : `<p class="qnote-add"><button type="button" class="linkbtn" data-q="noteOpen" data-id="${c.id}">+ Add a comment or example</button></p>`) : ''}
       </fieldset>`;
     }).join('');
@@ -2638,10 +2670,10 @@ const Q = {
         : this.sending ? `<h1>Sending your response…</h1><p class="why">This takes a moment.</p>`
         : `<h1>${this.sendFail ? 'Sending did not work. Please try again' : 'One last step: send your response'}</h1><p class="why">${this.sendFail ? `Check your connection and press Send again. If it still fails, download your answers and email the file to ${mailTo}.` : 'Press Send to share your answers with the Enterprise AI Navigator team.'}</p>`)
       : `<h1>One last step: send your response file</h1><p class="why">${this.dl ? 'Your file should have downloaded. If it did not, download it again or copy the response code below.' : 'Copy your response code below and paste it into an email.'} Send it to ${to}.</p>`;
-    const btns = (this.canSend() && !this.sent ? `<button class="btn pri" data-q="send" ${this.sending ? 'disabled' : ''}>Send my response</button>` : '') + (this.dl ? `<button class="btn ${this.canSend() ? '' : 'pri'}" data-q="dl">${this.canSend() ? 'Download a copy' : 'Download response file again'}</button>` : '') + '<button class="btn" data-q="edit">Change my answers</button>';
+    const btns = (this.canSend() && !this.sent ? `<button class="btn pri" data-q="send" ${this.sending ? 'disabled' : ''}>Send my response</button>` : '') + (this.canSend() ? `<button class="btn ${this.sent ? 'pri' : ''}" data-q="pdf">Save a PDF of your answers</button>` : this.dl ? '<button class="btn pri" data-q="dl">Download response file again</button>' : '') + '<button class="btn" data-q="edit">Change my answers</button>';
     const right = this.sent
-      ? `<div class="card stack"><h3>What happens next</h3><ul class="list"><li>${this.s.invitedBy ? esc(this.s.invitedBy) + ' and the' : 'The'} Enterprise AI Navigator team combine your answers with your colleagues’.</li><li>Your organisation receives a readiness report: where you stand, the gaps to close first and a roadmap.</li><li>Questions, or want your data deleted? Write to ${mailTo}.</li></ul></div>`
-      : `<div class="card stack"><h3>${this.canSend() ? 'If sending keeps failing' : 'Sending the file'}</h3><p class="small">${this.canSend() ? `Download your answers and email the file to ${mailTo}.` : `Attach the downloaded file to an email to ${to}.`}</p>
+      ? `<div class="card stack"><h3>What happens next</h3><ul class="list"><li>${this.s.invitedBy ? esc(this.s.invitedBy) + ' and the' : 'The'} Enterprise AI Navigator team combine your answers with your colleagues’.</li><li>Your organisation receives a readiness report: where you stand, the gaps to close first and a plan.</li><li>To keep your own copy, press <b>Save a PDF of your answers</b> and choose “Save as PDF”.</li><li>Questions, or want your data deleted? Write to ${mailTo}.</li></ul></div>`
+      : `<div class="card stack"><h3>${this.canSend() ? 'If sending keeps failing' : 'Sending the file'}</h3><p class="small">${this.canSend() ? `Download your answers and email the file to ${mailTo}.` : `Attach the downloaded file to an email to ${to}.`}</p>${this.canSend() && this.dl ? '<button class="btn sm" data-q="dl" style="align-self:flex-start">Download response file</button>' : ''}
         <details class="qcode"><summary>Can’t attach a file? Use your response code</summary><p class="small muted" style="margin-top:8px">Copy this code into the body of your email. It holds all your answers.</p><textarea id="respText" rows="4" readonly>${esc(code)}</textarea><button class="btn sm" data-q="copy" style="margin-top:8px">Copy response code</button></details></div>`;
     return `<section class="instrument qhero"><span class="eyebrow">${this.canSend() && !this.sent ? 'Not sent yet' : 'Thank you, ' + first}</span>${head}
       <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">${btns}</div></section>
@@ -2649,10 +2681,36 @@ const Q = {
       ${right}</div>`;
   },
 
+  /* A readable copy of the respondent's own answers, saved as PDF through the browser's print dialog */
+  personal() {
+    const p = this.payload(), r = p.respondent, A = p.answers;
+    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const st = NAV.bgroups.map(g => { const v = NAV.bcaps.filter(c => c.g === g.id).map(c => A[c.id].l).filter(x => x != null); return { g, v, av: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }; });
+    let stuck = null; for (const x of st.filter(x => x.g.id !== 'F')) { if (x.av == null || x.av < 2.75 || Math.min(...x.v) < 2) { stuck = x; break; } }
+    const answered = st.some(x => x.av != null);
+    const bar = x => `<tr><td>${esc(x.g.id === 'F' ? 'Foundations' : 'Stage ' + x.g.id.slice(1) + ' · ' + x.g.short)}</td><td class="pbar"><i style="width:${x.av == null ? 0 : (x.av - 1) / 4 * 100}%"></i></td><td class="pn">${x.av == null ? '—' : x.av.toFixed(1)}</td></tr>`;
+    const rows = NAV.bgroups.map(g => `<tr class="pg"><td colspan="2">${esc(g.name)}</td></tr>` + NAV.bcaps.filter(c => c.g === g.id).map(c => { const a = A[c.id], q = NAV.bq[c.id]; return `<tr><td>${esc(q.q)}</td><td>${a.dk ? '<i>Don’t know</i>' : a.l ? `<b>${a.l}</b> · ${esc(q.o[a.l - 1])}` : '<i>Not answered</i>'}${a.n ? `<div class="pnote">${esc(a.n)}</div>` : ''}</td></tr>`; }).join('')).join('');
+    const outs = NAV.outcomeQs.map(x => { const o = p.outcomes[x.id]; return `<tr><td>${esc(x.q)}</td><td>${!o ? '<i>Not answered</i>' : o.dk ? '<i>Don’t know</i>' : esc(x.o[o.v])}</td></tr>`; }).join('');
+    const amb = NAV.ambitions.find(a => a.id === p.ambition);
+    return `<div class="phead"><div class="pbrand">Enterprise AI Navigator</div><h1>Your AI readiness answers</h1><p>${esc(r.name)} · ${esc(r.roleName)} · ${esc(r.org)} · ${date}</p></div>
+      <h2>Your view, in short</h2>
+      <p>${!answered ? 'You did not rate any capabilities.' : stuck ? `In your view, AI work at ${esc(r.org || 'your organisation')} gets stuck at <b>Stage ${stuck.g.id.slice(1)}, ${esc(stuck.g.name.replace(/^Stage \d · /, ''))}</b>: the first stage where your answers average below 3 or include a 1.` : 'In your view, AI work does not get stuck at any of the six stages: each averages 3 or more in your answers.'}${amb ? ` The goal you chose for the next 12 to 18 months: <b>${esc(amb.name)}</b>.` : ''}</p>
+      <table class="pbars">${st.map(bar).join('')}</table>
+      <p class="psmall">Average of your answers for each stage, on a scale of 1 (ad hoc) to 5 (optimised).</p>
+      <h2>Your answers</h2><table class="pt">${rows}</table>
+      <h2>Results so far</h2><table class="pt">${outs}</table>
+      <p class="psmall">This is your own view. Your organisation’s report combines your answers with your colleagues’, and shows where you agree and disagree. Questions, or want your data deleted? Write to ${esc(NAV.contactEmail)}.</p>`;
+  },
+  printPDF() {
+    let d = document.getElementById('printView'); if (!d) { d = document.createElement('div'); d.id = 'printView'; document.body.appendChild(d); }
+    d.innerHTML = this.personal(); const t = document.title; document.title = 'AI readiness answers - ' + (this.s.resp.name || '').trim();
+    setTimeout(() => { window.print(); document.title = t; }, 50);
+  },
+
   bind() {
     document.addEventListener('input', e => {
       const t = e.target;
-      if (t.dataset.r) { this.s.resp[t.dataset.r] = t.type === 'checkbox' ? t.checked : t.value; this.save(); const nb = document.querySelector('[data-q=next]'); if (nb && STEPS[this.s.step] === 'intro') { nb.disabled = !this.canLeaveIntro(); const need = document.getElementById('introNeed'); if (need) need.textContent = this.canLeaveIntro() ? '' : 'Fill in the fields marked * to start.'; } document.querySelectorAll('.qstep').forEach((b, i) => { if (i > 0) b.disabled = !this.canLeaveIntro(); }); }
+      if (t.dataset.r) { this.s.resp[t.dataset.r] = t.type === 'checkbox' ? t.checked : t.value; this.save(); const nb = document.querySelector('[data-q=next]'); if (nb && STEPS[this.s.step] === 'intro') { nb.disabled = !this.canLeaveIntro(); const need = document.getElementById('introNeed'); if (need) need.textContent = this.introNeed(); const eh = document.getElementById('emailHint'); if (eh && t.dataset.r === 'email') eh.textContent = t.value.trim() && NAV.workEmailIssue(t.value) ? NAV.workEmailIssue(t.value) : 'Your work address groups your answers with your colleagues’. It is never published.'; } document.querySelectorAll('.qstep').forEach((b, i) => { if (i > 0) b.disabled = !this.canLeaveIntro(); }); }
       if (t.dataset.q === 'note') { const a = this.s.answers[t.dataset.id] = this.s.answers[t.dataset.id] || {}; a.n = t.value; this.save(); }
     });
     document.addEventListener('change', e => {
@@ -2672,9 +2730,11 @@ const Q = {
       if (q === 'sure') { this.s.answers[b.dataset.id].s = b.dataset.v; this.save(); this.keepScroll(() => this.render()); }
       if (q === 'restart' || q === 'fresh') { this.s = this.blank(); this.prefill(); this.resumed = false; this.done = false; this.sent = false; this.sendFail = false; this.save(); this.render(); window.scrollTo(0, 0); if (q === 'fresh') toast('Fresh form ready'); }
       if (q === 'keep') { this.resumed = false; this.render(); }
+      if (q === 'finish' && NAV.workEmailIssue(this.s.resp.email)) { toast(NAV.workEmailIssue(this.s.resp.email)); this.go(0); setTimeout(() => { const e = document.getElementById('r_email'); if (e) e.focus(); }, 300); return; }
       if (q === 'finish') { this.done = true; this.render(); window.scrollTo(0, 0); if (this.canSend()) await this.send(); else await this.download(); }
       if (q === 'send') await this.send();
       if (q === 'dl') await this.download();
+      if (q === 'pdf') this.printPDF();
       if (q === 'copy') { const t = document.getElementById('respText'); try { await navigator.clipboard.writeText(RCODE.enc(this.payload())); toast('Response code copied: paste it into an email'); } catch (err) { t.focus(); t.select(); toast('Select all the text and copy it'); } }
       if (q === 'edit') { this.done = false; this.go(STEPS.length - 1); }
       if (q === 'cont') await this.showContinue();
