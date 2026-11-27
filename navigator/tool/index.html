@@ -3417,7 +3417,7 @@ BASE.summaryCard = function (b) {
 };
 BASE.views.report = function () {
   return `<div class="stack"><div class="sec-head"><div><span class="eyebrow">${BASE.stepNo('report')}</span><h2>Gap analysis report</h2><p>A board-ready report: executive summary, where the organisation is on the AI journey, its target, the gaps stage by stage, leadership alignment, visibility gaps and the roadmap.</p></div>
-    <div class="row"><button class="btn" data-act="copySummary" data-k="base">Copy text summary</button>${App.dl ? '<button class="btn pri" data-act="baseDocx">Download customer report (Word)</button>' : ''}${App.dl ? '<button class="btn" data-act="download" data-k="baseReport">Download report (.html)</button>' : ''}</div></div>
+    <div class="row"><button class="btn" data-act="copySummary" data-k="base">Copy text summary</button><button class="btn pri" data-act="baseDesigned">Open designed report (save as PDF)</button>${App.dl ? '<button class="btn" data-act="baseDocx">Word version</button>' : ''}${App.dl ? '<button class="btn" data-act="download" data-k="baseReport">Download report (.html)</button>' : ''}</div></div>
     ${BASE.summaryCard(BASE.b())}
     <div class="card">${BASE.reportHTML(BASE.b())}</div></div>`;
 };
@@ -4090,6 +4090,233 @@ const RPT = {
   },
   async blob(b) { return docx.Packer.toBlob(this.build(b)); },
   fname(b) { return 'ai-readiness-report-' + ((b.meta.org || 'org').replace(/^Sample: /, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'org') + '.docx'; }
+};
+
+/* Designed readiness report: an A4 print-ready page built from the same findings as the Word
+   report (RPT.insights), saved as PDF through the browser. Charts are drawn in HTML, so they stay sharp. */
+const RPTH = {
+  C: { navy: '#0F2235', sea: '#1E5A82', gold: '#C99632', goldText: '#7A5A12', red: '#B4413C', ink: '#14212E', muted: '#55687A', line: '#D8E0E5', soft: '#F3F5F7', cream: '#FBF6EC', biz: '#0F2235', tech: '#C99632', other: '#9AABB9' },
+  words: k => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][k] || String(k),
+
+  /* ---------- extra findings for this report ---------- */
+  /* Which planned kinds of AI the organisation can run at scale today, from the capabilities each depends on */
+  plans(b, A, org) {
+    const ids = (b.patterns || []).filter(id => NAV.patternById(id));
+    if (!ids.length || !A.scored) return null;
+    const list = ids.map(id => { const P = NAV.patternById(id);
+      const caps = (NAV.patternUplift[id] || []).map(cid => A.caps.find(x => x.cap.id === cid)).filter(Boolean).map(x => ({ n: x.cap.n, g: x.cap.g, cur: x.cur, t: x.t, gap: x.cur == null ? null : Math.max(0, x.t - x.cur) }));
+      const known = caps.filter(c => c.gap != null), steps = known.reduce((a, c) => a + c.gap, 0);
+      const ready = known.length === caps.length && steps === 0, unknown = caps.length - known.length;
+      return { id, name: P.name, examples: String(P.examples || '').split(',').slice(0, 3).join(',').trim(), caps, steps, ready, unknown, big: known.some(c => c.gap >= 2) }; })
+      .sort((p, q) => p.steps - q.steps);
+    const ready = list.filter(x => x.ready), rest = list.filter(x => !x.ready), n = list.length;
+    const closest = rest[0];
+    list.forEach(x => { x.verdict = x.ready ? 'Ready' : x === closest ? 'Closest to ready' : x.big ? 'Not ready' : 'Nearly ready'; });
+    const W = RPTH.words, cap = t => t.charAt(0).toUpperCase() + t.slice(1), lc = t => /^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+    const head = !rest.length ? `${org} is ready to run every kind of AI it plans` : !ready.length ? `${org} plans ${W(n)} kind${n > 1 ? 's' : ''} of AI. ${n > 1 ? 'None' : 'It'} can${n > 1 ? '' : 'not'} run safely at scale today` : `${cap(W(ready.length))} of the ${W(n)} kinds of AI ${org} plans can run at scale today`;
+    const blockers = x => x.caps.filter(c => c.gap).sort((p, q) => q.gap - p.gap).slice(0, 2).map(c => `‘${c.n}’`);
+    const means = [];
+    const listAnd = a => a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+    if (ready.length) means.push(`${listAnd(ready.map(x => x.name))} can go ahead: the capabilities ${ready.length > 1 ? 'they depend' : 'it depends'} on are in place.`);
+    if (closest) means.push(`${ready.length ? 'Next' : 'Start with'} ${lc(closest.name)}: it is the closest to ready, needing ${closest.steps} step${closest.steps === 1 ? '' : 's'} across ${closest.caps.filter(c => c.gap).length} capabilit${closest.caps.filter(c => c.gap).length === 1 ? 'y' : 'ies'}.`);
+    rest.slice(1, 3).forEach(x => { const bk = blockers(x); if (bk.length) means.push(`Hold ${lc(x.name)} until ${bk.join(' and ')} ${bk.length > 1 ? 'are' : 'is'} in place.`); });
+    return { head, list, means, take: closest ? `Sequence the plans by readiness: fund ${lc(closest.name)} first, and fix the blockers of the others in parallel.` : 'Move ahead with every planned kind of AI, and measure the value of each.' };
+  },
+  /* Leaders' own comments, by function only, most relevant first */
+  quotes(I) {
+    const side = r => r.respondent.role == null ? 'other' : NAV.roleSide(r.respondent.role) || 'other';
+    const who = { biz: 'A business leader', tech: 'A technology leader', other: 'A leader in another function' };
+    const stall = I.A.stall ? 'P' + I.A.stall : null, all = [];
+    (I.R || []).forEach(r => Object.entries(r.answers || {}).forEach(([cid, a]) => { const t = String((a && a.n) || '').replace(/\s+/g, ' ').trim(); if (t.length < 12) return;
+      const c = NAV.bcaps.find(x => x.id === cid); all.push({ who: who[side(r)], text: t.length > 170 ? t.slice(0, 167).replace(/\s+\S*$/, '') + '…' : t, rank: (c && c.g === stall ? 0 : 1), cap: c ? c.n : '' }); }));
+    all.sort((p, q) => p.rank - q.rank || q.text.length - p.text.length);
+    const seen = new Set(), out = []; all.forEach(x => { if (out.length < 3 && !seen.has(x.text)) { seen.add(x.text); out.push(x); } });
+    return out;
+  },
+
+  /* ---------- building blocks ---------- */
+  e: v => esc(v),
+  f1: v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1),
+  opener(no, head, base) { const C = this.C; return `<div class="no">${no}</div><h2 class="head">${this.e(head)}</h2><p class="base">${this.e(base)}</p>`; },
+  meaning(found, means) {
+    const e = this.e, f = (found || []).filter(Boolean);
+    const box = `<div class="means"><div class="lab gold">What this means for leaders</div>${means.map(t => `<p>${e(t)}</p>`).join('')}</div>`;
+    return f.length ? `<div class="two"><div><div class="lab">What we found</div><ul>${f.map(t => `<li>${e(t)}</li>`).join('')}</ul></div>${box}</div>` : box;
+  },
+  take(t) { return t ? `<div class="take">${this.e(t)}</div>` : ''; },
+  foot(org, page) { return `<div class="foot"><span>Enterprise AI Navigator | AI Readiness Report | ${this.e(org)}</span><span>Confidential</span></div>`; },
+  stageBars(A) {
+    const C = this.C, H = 118, rel = (2.75 - 1) / 4 * H;
+    const cols = NAV.bgroups.map((g, i) => { const v = A.groups[g.id].cur, stuck = A.stall && g.id === 'P' + A.stall, col = stuck ? C.red : C.sea, h = v == null ? 0 : Math.round((v - 1) / 4 * H);
+      return `<div class="sb"><div class="sbv" style="color:${col}">${this.f1(v)}</div><div class="sbt" style="height:${H}px"><div class="rl" style="bottom:${Math.round(rel)}px"></div><div style="height:${h}px;background:${col}"></div></div><div class="sbl">${g.id === 'F' ? 'Foundations' : 'Stage ' + g.id.slice(1)}</div><div class="sbs">${this.e(g.id === 'F' ? 'Governance, people' : g.short)}</div></div>`; }).join('');
+    return `<div class="sbw"><div class="sbrow">${cols}</div></div>`;
+  },
+  hbars(rows, max, fmt, color) {
+    const C = this.C; return `<div class="hb">${rows.map(r => `<div class="hbr"><div class="hbl"><div${r.hi ? ' style="font-weight:700"' : ''}>${this.e(r.label)}</div>${r.sub ? `<div class="hbs" style="color:${r.hi ? C.red : C.muted}">${this.e(r.sub)}</div>` : ''}</div><div class="hbt"><div style="width:${max ? Math.max(r.v > 0 ? 1.5 : 0, r.v / max * 100) : 0}%;background:${r.hi ? C.red : color || C.sea}"></div></div><div class="hbn">${this.e(fmt(r.v))}</div></div>`).join('')}</div>`;
+  },
+  groupBars(groups) {
+    const ids = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'F'];
+    const rows = ids.map(id => { const g = NAV.bgroups.find(z => z.id === id);
+      return `<div class="gbr"><div class="gbl">${id === 'F' ? 'Foundations' : 'Stage ' + id.slice(1) + ' · ' + this.e(g.short)}</div><div class="gbb">${groups.map(gr => gr.v[id] == null ? '' : `<div class="gbline"><div class="gbbar" style="width:${(gr.v[id] - 1) / 4 * 100}%;background:${gr.color}"></div><span>${this.f1(gr.v[id])}</span></div>`).join('')}</div></div>`; }).join('');
+    return `<div class="gb">${rows}<div class="gbaxis"><span>1 ad hoc</span><span>5 optimised</span></div></div><div class="legend">${groups.map(g => `<span><i style="background:${g.color}"></i>${this.e(g.name)} (${g.n})</span>`).join('')}</div>`;
+  },
+  dots(rows) {
+    const C = this.C, x = v => (v - 1) / 4 * 100, sides = ['biz', 'tech', 'other'];
+    return `<div class="dt">${rows.map(r => { const ls = r.pts.map(p => p.l), lo = Math.min(...ls), hi = Math.max(...ls);
+      let marks = ''; for (let v = 1; v <= 5; v++) { const here = sides.map(sd => ({ sd, k: r.pts.filter(p => p.l === v && p.side === sd).length })).filter(z => z.k);
+        here.forEach((z, k) => { marks += `<div class="dot" style="left:calc(${x(v)}% + ${(k - (here.length - 1) / 2) * 22}px);background:${C[z.sd]};color:${z.sd === 'biz' ? '#fff' : C.ink}">${z.k > 1 ? z.k : ''}</div>`; }); }
+      return `<div class="dtr"><div class="dtl">${this.e(r.label)}</div><div class="dtt"><div class="dtrange" style="left:${x(lo)}%;width:${x(hi) - x(lo)}%"></div>${marks}</div></div>`; }).join('')}
+      <div class="dtr"><div class="dtl"></div><div class="dtt axis">${[1, 2, 3, 4, 5].map(v => `<span style="left:${x(v)}%">${v}</span>`).join('')}</div></div></div>
+      <div class="legend"><span><i class="round" style="background:${C.biz}"></i>Business</span><span><i class="round" style="background:${C.tech}"></i>Technology</span><span><i class="round" style="background:${C.other}"></i>Other functions</span><span>A number shows how many leaders gave the same answer</span></div>`;
+  },
+  stack(rows) {
+    const C = this.C, pal = ['#E6ECF1', '#BFD0DD', '#7FA2BC', '#3F6F93', '#0F2235'];
+    return rows.map(r => { const tot = r.segs.reduce((a, s) => a + s.n, 0) || 1, last = r.segs.length - 1;
+      return `<div class="st"><div class="stq">${this.e(r.label)}</div><div class="stbar">${r.segs.map((s, i) => s.n ? `<div style="flex:${s.n};background:${i === last ? '#D9D9D9' : pal[Math.round(i / Math.max(1, last - 1) * 4)]};color:${i !== last && i / Math.max(1, last - 1) > 0.5 ? '#fff' : C.ink}">${s.n}</div>` : '').join('')}</div><div class="stleg">${r.segs.map((s, i) => s.n ? `<span><i style="background:${i === last ? '#D9D9D9' : pal[Math.round(i / Math.max(1, last - 1) * 4)]}"></i>${this.e(s.label)}</span>` : '').join('')}</div></div>`; }).join('');
+  },
+  track(c) {
+    const C = this.C, x = v => (v - 1) / 4 * 100;
+    if (c.cur == null) return `<div class="tr"><div class="trl">${this.e(c.n)}</div><div class="trt"><span class="dk">Leaders could not rate this</span></div><div class="trn">? → ${c.t}</div></div>`;
+    const col = c.gap >= 2 ? C.red : c.gap ? C.gold : C.sea;
+    return `<div class="tr"><div class="trl">${this.e(c.n)}</div><div class="trt"><div class="trbase"></div>${c.gap ? `<div class="trgap" style="left:${x(c.cur)}%;width:${x(c.t) - x(c.cur)}%;background:${col}"></div>` : ''}<div class="trnow" style="left:calc(${x(c.cur)}% - 7px)"></div><div class="trneed" style="left:calc(${x(Math.max(c.t, c.cur))}% - 7px)"></div></div><div class="trn">${c.cur} → ${c.t}</div></div>`;
+  },
+
+  /* ---------- the whole document ---------- */
+  html(b) {
+    const C = this.C, e = this.e, I = RPT.insights(b), A = I.A, K = I.K, org = I.org, amb = I.amb, P = BASE.peer(b, A);
+    const orgShort = org.length <= 32 ? org : 'Your organisation';
+    const date = new Date(b.meta.date || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const PL = this.plans(b, A, orgShort), Q = this.quotes(I);
+    /* sections in reading order, numbered as they appear */
+    const secs = [];
+    const add = (key, head, base, body) => secs.push({ key, head, base, body });
+    const j = I.j;
+    add('stuck', j.head, j.base, `${A.scored ? this.stageBars(A) + `<p class="note">Average answer for each stage, from 1 (ad hoc) to 5 (optimised). The gold line marks a reliable stage.</p>` : ''}${this.meaning(j.found, j.means)}${Q.length ? `<div class="quotes"><div class="lab">In their words</div><div class="qrow">${Q.map(q => `<figure><blockquote>“${e(q.text)}”</blockquote><figcaption>${e(q.who)}, on ${e(/^[A-Z][a-z]/.test(q.cap) ? q.cap.charAt(0).toLowerCase() + q.cap.slice(1) : q.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}${this.take(j.take)}`);
+    if (A.scored) { const g = I.g2; add('goal', g.head, g.base, `<div class="lab">Steps to climb on the 1 to 5 scale, added up for each stage</div>${this.hbars(g.rows, Math.max(1, ...g.rows.map(r => r.v)), v => v ? `${v} step${v > 1 ? 's' : ''}` : 'On target')}${this.meaning(g.found, g.means)}${this.take(g.take)}`); }
+    if (PL) add('plans', PL.head, I.base, `<p class="lead">Each kind of AI leans on a few capabilities. The dot is where ${e(orgShort)} stands today; the ring is the level that kind of AI needs to go live at scale.</p>
+      <div class="legend"><span><i class="round" style="background:${C.navy}"></i>Today</span><span><i class="round ring"></i>Needed</span><span>Scale 1 (ad hoc) to 5 (optimised)</span></div>
+      ${PL.list.map(p => `<div class="card"><div class="cardh"><h3>${e(p.name)}</h3><div class="verdict" style="color:${p.ready ? C.sea : p.verdict === 'Closest to ready' ? C.sea : p.big ? C.red : C.goldText}">${e(p.verdict)}${p.ready ? '' : `: ${p.steps} step${p.steps === 1 ? '' : 's'} to close`}</div></div><div class="ex">${e(p.examples)}</div>${p.caps.map(c => this.track(c)).join('')}</div>`).join('')}
+      ${this.meaning([], PL.means)}${this.take(PL.take)}`);
+    if (I.p3) { const s = I.p3; add('views', s.head, s.base, `${s.fn.length ? `<div class="lab">Average answer for each stage, by function</div>${this.groupBars(s.fn)}` : ''}${s.sen.length > 1 ? `<div class="lab" style="margin-top:14px">Average answer across all 28 capabilities, by seniority</div>${this.hbars(s.sen.map(x => ({ label: x.name, sub: `${x.n} leader${x.n > 1 ? 's' : ''}`, v: (x.all || 1) - 1 })), 4, v => (v + 1).toFixed(1), '#1E5A82')}` : ''}${this.meaning(s.found, s.means)}${this.take(s.take)}<p class="note">Business includes general management, finance, sales, marketing, channels and operations; technology includes IT and IT security. Averages from small groups of leaders are indicative.</p>`); }
+    if (I.p4) { const s = I.p4; add('agree', s.head, s.base, `${s.dots.length ? `<div class="lab">Where leaders disagree most: each dot is one leader’s answer</div>${this.dots(s.dots)}` : ''}${s.bl.length ? `<div class="lab" style="margin-top:14px">Capabilities some leaders could not rate (number who said “Don’t know”)</div>${this.hbars(s.bl.map(x => ({ label: x.cap.n, v: x.dk })), I.n, v => `${v} of ${I.n}`, '#9AABB9')}` : ''}${this.meaning(s.found, s.means)}${this.take(s.take)}`); }
+    if (I.p5) { const s = I.p5; add('results', s.head, s.base, `<div class="lab">What leaders say about results so far (number of leaders giving each answer)</div>${this.stack(s.rows)}${this.meaning(s.found, s.means)}${this.take(s.take)}`); }
+    /* comparison */
+    const refs = BASE.refCaps(b, A).filter(x => x.cur != null && x.gap > 0).slice(0, 5);
+    if (P) { const ahead = P.stages.filter(x => x.pos === 'Ahead').length, behind = P.stages.filter(x => x.pos === 'Behind').length, tot = P.stages.filter(x => x.s).length;
+      add('peers', behind > ahead ? `${orgShort} is behind its India peers on ${behind} of ${tot} stages` : ahead > behind ? `${orgShort} is ahead of its India peers on ${ahead} of ${tot} stages` : `${orgShort} is broadly in line with its India peers`, `Peers: ${P.g.key === 'all' ? 'all organisations in the benchmark' : P.g.label} (${P.g.n} organisations).`,
+        `<table class="tbl"><thead><tr><th>Stage</th><th class="n">You</th><th class="n">Peer median</th><th class="n">Peers’ middle half</th><th>Position</th></tr></thead><tbody>${P.stages.filter(x => x.s).map(x => `<tr><td>${e(x.gr.id === 'F' ? 'Foundations' : x.gr.name)}</td><td class="n">${this.f1(x.cur)}</td><td class="n">${this.f1(x.s.med)}</td><td class="n">${this.f1(x.s.p25)}–${this.f1(x.s.p75)}</td><td><b style="color:${x.pos === 'Behind' ? C.red : x.pos === 'Ahead' ? C.sea : C.ink}">${e(x.pos || '—')}</b></td></tr>`).join('')}</tbody></table><p class="note">${e(P.B.name)}${P.B.wave ? ', ' + e(P.B.wave) : ''}. ${P.B.demo ? 'Illustrative demo data, not real organisations. ' : ''}Self-assessed by several leaders per organisation; no group of fewer than 5 organisations is shown.</p>${refs.length ? '' : ''}`); }
+    else if (refs.length) add('refs', `What published studies say about ${orgShort}’s biggest gaps`, 'Each figure names its source. Comparison with similar Indian organisations will be added once the India benchmark is published.',
+      `<div class="refs">${refs.map(x => `<div class="ref"><div class="refh">${e(x.cap.n)} <span>today ${x.cur}, target ${x.t}</span></div>${x.refs.slice(0, 2).map(r => `<p><b>${e(r.v)}</b> ${e(r.t)} <a href="${e(r.url)}">${e(r.src)}, ${e(r.yr)}</a></p>`).join('')}</div>`).join('')}</div><p class="note">Published figures come from named studies with their own samples and definitions. They are context, never blended into your scores.</p>`);
+    /* plan */
+    const col = (title, all, cls) => { const items = all.slice(0, 5), more = all.length - items.length; return `<div class="rcol ${cls}"><div class="rh">${e(title)}</div>${items.length ? items.map(x => `<div class="ri"><b>${e(x.cap.n)}</b><span>From ${x.cur} to ${x.t}: ${e(BASE.action(x).replace(/\.$/, ''))}.</span></div>`).join('') : '<div class="ri"><span>Nothing scheduled</span></div>'}${more ? `<div class="ri"><span><i>Plus ${more} more: see the appendix</i></span></div>` : ''}</div>`; };
+    if (A.scored) add('plan', I.p7.head, 'Earlier stages come first, because a gap early in the journey holds back every stage after it.',
+      `<div class="road">${col('Now: 0–3 months', A.road.now, 'now')}${col('Next: 3–9 months', A.road.next, 'next')}${col('Later: 9–18 months', A.road.later, 'later')}</div>
+      <h3 class="sub">Recommended next steps</h3><ol class="steps"><li><b>Agree the picture.</b> Hold a 90-minute session with the leaders who answered${I.p4 && I.p4.dis.length ? ', starting with the capabilities where they disagree' : ''}.</li><li><b>Start the “Now” actions.</b> Give each of the ${A.road.now.length} actions in the first column one owner and one 90-day milestone.</li>${PL && PL.list.some(x => !x.ready) ? `<li><b>Sequence your AI plans.</b> Take the kind of AI closest to ready through a go or no-go review before funding it.</li>` : '<li><b>Test one use case.</b> Take your most promising AI use case through a go or no-go review before funding it.</li>'}<li><b>Measure progress.</b> Repeat this assessment in six months with the same leaders to see which gaps have closed.</li></ol>
+      <div class="means" style="margin-top:14px"><div class="lab gold">Talk to the Enterprise AI Navigator team</div><p>We can run the session with your leadership team. Write to amitmehta@symvayaai.com or visit symvayaai.com/ai-readiness.</p></div>`);
+    secs.forEach((s, i) => s.no = String(i + 1).padStart(2, '0'));
+
+    /* page 1 */
+    const nth = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'], stuckName = A.stall ? NAV.bgroups[A.stall - 1].name.replace(/^Stage \d · /, '') : '';
+    const story = !A.scored ? (I.n ? `${org}’s leaders could not rate any of the 28 capabilities.` : `${org} has not been assessed yet.`) : A.stall ? `${orgShort}’s goal is “${amb.name}”, but its AI work gets stuck at the ${nth[A.stall - 1]} stage: ${stuckName.charAt(0).toLowerCase() + stuckName.slice(1)}.` : `${orgShort}’s goal is “${amb.name}”, and its AI work does not get stuck at any stage.`;
+    const page1 = `<section class="pg first"><div class="band"><div><div class="brand">Enterprise AI Navigator</div><h1>AI Readiness Report</h1><div class="org">${e(org)}</div></div><div class="meta">${K ? `${K.n} leader${K.n > 1 ? 's' : ''} answered` : 'Assessor view'}<br>${e(date)}${b.meta.scope ? '<br>' + e(b.meta.scope) : ''}<br>Confidential</div></div>
+      <div class="pad"><div class="hero"><div class="score"><div>${A.index == null ? '—' : Math.round(A.index)}</div><span>out of 100</span></div><div><div class="lab sea">AI readiness score</div><p class="story">${e(story)}</p></div></div>
+      ${(b.aiSummary || '').trim() ? `<p class="ai">${e(b.aiSummary.trim())}</p><p class="note">Drafted with AI from the findings in this report and reviewed by the Enterprise AI Navigator team.</p>` : ''}
+      ${A.scored ? `<h3 class="sub">Where each stage stands today</h3>${this.stageBars(A)}` : ''}
+      <h3 class="sub">What the report finds</h3><div class="finds">${secs.map(s => `<div class="find"><span>${s.no}</span><div>${e(s.head)}</div></div>`).join('')}</div></div>${this.foot(org)}</section>`;
+    const body = secs.map(s => `<section class="pg"><div class="pad">${this.opener(s.no, s.head, s.base)}${s.body}</div>${this.foot(org)}</section>`).join('');
+    /* appendix */
+    const multi = K && K.n > 1;
+    const appx = `<section class="pg"><div class="pad"><h2 class="head" style="margin-top:0">Appendix: all 28 capabilities</h2><table class="tbl small"><thead><tr><th>Capability</th><th class="n">Today</th><th class="n">Target</th>${multi ? '<th class="n">How far apart leaders were</th>' : ''}</tr></thead><tbody>${NAV.bgroups.map(g => `<tr class="grp"><td colspan="${multi ? 4 : 3}">${e(g.id === 'F' ? 'Foundations' : g.name)}</td></tr>` + A.groups[g.id].cs.map(x => `<tr><td>${e(x.cap.n)}</td><td class="n">${x.cur == null ? '—' : x.cur}</td><td class="n">${x.t}</td>${multi ? `<td class="n">${K.spread[x.cap.id] === 0 ? 'Same answer' : K.spread[x.cap.id] === 1 ? '1 step' : K.spread[x.cap.id] + ' steps'}</td>` : ''}</tr>`).join('')).join('')}</tbody></table></div>${this.foot(org)}</section><section class="pg"><div class="pad">
+      <h3 class="sub" style="margin-top:0">How this report was produced</h3><ul class="method"><li>28 capabilities, four for each of the six stages of an AI project plus four foundations, each scored from 1 (ad hoc) to 5 (optimised).</li><li>${K ? 'Each capability score is the middle (median) answer of the leaders, rounded down. “Don’t know” answers are left out of the score and reported separately.' : 'Scores were entered by the assessor.'}</li>${multi ? '<li>Leaders disagree on a capability when their answers are two or more steps apart. With five or more leaders, the most extreme fifth of answers at each end is set aside.</li>' : ''}<li>A stage is reliable when its capabilities average about 3 or more, with none below 2. The AI readiness score is the average of the six stages, held to no more than one step above the weakest stage, shown out of 100.</li><li>Targets come from the goal your leaders chose, and are one step higher where the kinds of AI you plan to use depend on a capability.</li><li>Headlines and findings are written from the scores by fixed rules, so the same answers always give the same report. Leaders’ comments are shown by function only.</li></ul>
+      ${K && K.people && K.people.length ? `<h3 class="sub">Leaders who answered</h3><table class="tbl small"><thead><tr><th>Name</th><th>Function</th><th>Date</th></tr></thead><tbody>${K.people.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.role || '')}</td><td>${e(p.at || '')}</td></tr>`).join('')}</tbody></table>` : ''}</div>${this.foot(org)}</section>`;
+    return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>AI Readiness Report - ${e(org)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600;700&display=swap">
+<style>${this.css()}</style></head><body>${page1}${body}${appx}</body></html>`;
+  },
+  css() {
+    const C = this.C;
+    return `@page{size:A4;margin:10mm 0 11mm}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font:13.5px/1.5 Inter,Arial,sans-serif;color:${C.ink}}
+.pg{width:210mm;min-height:276mm;position:relative;display:flex;flex-direction:column;break-after:page;page-break-after:always}
+.pg:last-child{break-after:auto;page-break-after:auto}
+.pad{padding:4mm 15mm 6mm;flex:1}
+.first .pad{padding-top:7mm}
+.band{background:${C.navy};margin:0 8mm;border-radius:6px;padding:9mm 9mm 8mm;display:flex;justify-content:space-between;align-items:flex-end;gap:24px}
+.brand{font-size:12.5px;font-weight:600;color:#E3B05A}
+h1{margin:4px 0 2px;font:600 36px/1.1 'Source Serif 4',Georgia,serif;color:#fff}
+.org{font:400 22px 'Source Serif 4',Georgia,serif;color:#DCE4EB}
+.meta{font-size:12px;line-height:1.6;color:#B9C7D3;text-align:right}
+.hero{display:flex;gap:28px;align-items:center;margin:2mm 0 4mm}
+.score{flex:none;width:136px;height:136px;border-radius:50%;border:10px solid ${C.soft};display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score div{font:600 50px/1 'Source Serif 4',Georgia,serif;color:${C.navy}}.score span{font-size:11.5px;color:${C.muted};margin-top:4px}
+.story{margin:6px 0 0;font:400 23px/1.3 'Source Serif 4',Georgia,serif;color:${C.ink};text-wrap:balance}
+.ai{margin:2mm 0 1mm;font-size:13.5px;line-height:1.6}
+.lab{font-size:12.5px;font-weight:700;color:${C.sea};margin:0 0 8px}.lab.gold{color:${C.goldText}}.lab.sea{color:${C.sea}}
+.sub{margin:6mm 0 3mm;font:600 18px 'Source Serif 4',Georgia,serif;color:${C.navy};break-after:avoid}
+.no{font-size:13px;font-weight:700;color:${C.gold};margin-bottom:4px}
+.head{margin:0 0 6px;font:600 25px/1.25 'Source Serif 4',Georgia,serif;color:${C.navy};text-wrap:balance}
+.base{margin:0 0 6mm;font-size:12px;color:${C.muted}}
+.lead{margin:0 0 8px;max-width:640px}
+.note{font-size:11.5px;color:${C.muted};margin:6px 0 0}
+.sbw{position:relative;margin:2mm 0 1mm}.sbrow{display:flex;gap:6px}
+.sb{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.sbv{font-weight:700;font-size:14px}.sbt{width:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid ${C.line}}
+.sbt{position:relative}.sbt div{width:56%;border-radius:3px 3px 0 0}.sbt .rl{position:absolute;left:-3px;right:-3px;width:auto;height:0;border-top:1.5px dashed ${C.gold};border-radius:0;z-index:1}.sbl{font-size:11.5px;font-weight:600;text-align:center}.sbs{font-size:11.5px;color:${C.muted};text-align:center;line-height:1.25;min-height:28px}
+.relline{position:absolute;left:0;right:0;border-top:1.5px dashed ${C.gold};z-index:1}.relline span{position:absolute;right:0;top:-17px;font-size:10.5px;font-weight:600;color:${C.goldText};background:#fff;padding-left:4px}
+.finds .find{display:flex;gap:14px;padding:7px 0;border-top:1px solid ${C.line};font-size:13.5px;line-height:1.45}.finds .find span{font-weight:700;color:${C.sea};width:22px;flex:none}
+.two{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;margin-top:6mm;break-inside:avoid}
+ul{margin:0;padding-left:18px}li{margin:0 0 6px}
+.means{background:${C.cream};border-radius:8px;padding:12px 16px;break-inside:avoid}.means p{margin:0 0 8px}.means p:last-child{margin:0}
+.two+.take,.means+.take,.quotes+.take{margin-top:5mm}
+.take{border:1.5px solid ${C.navy};border-radius:6px;padding:12px 16px;font-weight:700;font-size:14px;color:${C.navy};margin-top:5mm;break-inside:avoid}
+.quotes{margin-top:6mm;break-inside:avoid}.qrow{display:flex;gap:20px}.qrow figure{flex:1;margin:0}
+blockquote{margin:0;font:400 14px/1.45 'Source Serif 4',Georgia,serif}figcaption{margin-top:5px;font-size:11.5px;font-weight:600;color:${C.muted}}
+.hb{display:flex;flex-direction:column;gap:7px}.hbr{display:flex;align-items:center;gap:12px;break-inside:avoid}
+.hbl{width:215px;flex:none;font-size:12.5px;line-height:1.3}.hbs{font-size:11px;font-weight:600}
+.hbt{flex:1;height:16px;background:#EEF1F4}.hbt div{height:16px}.hbn{width:84px;flex:none;font-weight:700;font-size:12.5px}
+.gb{display:flex;flex-direction:column;gap:7px}.gbr{display:flex;gap:12px;align-items:center;break-inside:avoid}.gbl{width:150px;flex:none;font-size:12px}
+.gbb{flex:1;display:flex;flex-direction:column;gap:3px}.gbline{display:flex;align-items:center;gap:6px;height:12px}.gbbar{height:12px;min-width:2px}.gbline span{font-size:11px;font-weight:700}
+.gbaxis{display:flex;justify-content:space-between;margin-left:162px;font-size:10.5px;color:${C.muted}}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:8px 0 0;font-size:11.5px;color:${C.muted}}.legend span{display:flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px}.legend i.round{border-radius:50%}.legend i.ring{border:2.5px solid ${C.navy};background:#fff}
+.dt{display:flex;flex-direction:column}.dtr{display:flex;align-items:center;gap:12px;height:34px;break-inside:avoid}
+.dtl{width:215px;flex:none;font-size:12.5px;line-height:1.25}.dtt{position:relative;flex:1;height:26px;margin:0 14px}
+.dtt:not(.axis)::before{content:'';position:absolute;left:0;right:0;top:12px;height:2px;background:${C.line}}
+.dtrange{position:absolute;top:10px;height:6px;background:#C9D4DE;border-radius:3px}
+.dot{position:absolute;top:2px;width:22px;height:22px;margin-left:-11px;border-radius:50%;border:2px solid #fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.dtt.axis span{position:absolute;transform:translateX(-50%);font-size:11px;color:${C.muted};top:4px}
+.st{margin:0 0 12px;break-inside:avoid}.stq{font-weight:600;font-size:13px;margin-bottom:5px}.stbar{display:flex;height:24px;gap:2px}
+.stbar div{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;min-width:18px}
+.stleg{display:flex;flex-wrap:wrap;gap:12px;margin-top:5px;font-size:11px;color:${C.muted}}.stleg span{display:flex;gap:5px;align-items:center}.stleg i{width:10px;height:10px;display:inline-block}
+.card{border:1px solid ${C.line};border-radius:8px;padding:11px 16px 6px;margin-top:9px;break-inside:avoid}
+.cardh{display:flex;justify-content:space-between;align-items:baseline;gap:14px}.card h3{margin:0;font:600 17px 'Source Serif 4',Georgia,serif;color:${C.navy}}
+.verdict{font-size:12px;font-weight:700;white-space:nowrap}.ex{font-size:12px;color:${C.muted};margin:2px 0 4px}
+.tr{display:flex;align-items:center;gap:12px;padding:3px 0}.trl{width:215px;flex:none;font-size:12.5px;line-height:1.3}
+.trt{position:relative;flex:1;height:20px;margin:0 8px}.trbase{position:absolute;left:0;right:0;top:9px;height:2px;background:${C.line}}
+.trgap{position:absolute;top:8px;height:4px}.trnow{position:absolute;top:3px;width:14px;height:14px;border-radius:50%;background:${C.navy}}
+.trneed{position:absolute;top:3px;width:14px;height:14px;border-radius:50%;border:2.5px solid ${C.navy};background:transparent}
+.trn{width:52px;flex:none;text-align:right;font-size:12px;color:${C.muted}}.dk{font-size:11.5px;color:${C.muted};font-style:italic}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}.tbl th{text-align:left;font-size:11.5px;color:#fff;background:${C.navy};padding:6px 8px}
+.tbl td{padding:5px 8px;border-bottom:1px solid ${C.line}}.tbl .n{text-align:right}.tbl tr{break-inside:avoid}.tbl.small{font-size:11.5px}.tbl.small td{padding:3px 8px}
+.tbl tr.grp td{background:${C.soft};font-weight:700;color:${C.sea}}
+.refs .ref{border-top:1px solid ${C.line};padding:8px 0;break-inside:avoid}.refh{font-weight:700}.refh span{font-weight:400;color:${C.muted};font-size:12px}.refs p{margin:4px 0 0;font-size:12.5px}.refs a{color:${C.sea}}
+.road{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.rcol{border-radius:8px;padding:12px 14px;break-inside:avoid}
+.rcol.now{background:${C.cream}}.rcol.next{background:#EAF1F7}.rcol.later{background:${C.soft}}.rh{font-weight:700;margin-bottom:8px}
+.rcol.now .rh{color:${C.goldText}}.rcol.next .rh{color:${C.sea}}.rcol.later .rh{color:${C.muted}}
+.ri{margin-bottom:9px;font-size:12px;line-height:1.4}.ri b{display:block;font-size:12.5px}.ri span{color:#33475B}
+.steps{padding-left:20px;margin:0}.steps li{margin-bottom:6px}
+.method li{font-size:12.5px}
+.foot{display:flex;justify-content:space-between;padding:3mm 15mm 0;border-top:1px solid ${C.line};font-size:10.5px;color:${C.muted}}
+@media screen{body{background:#E9ECEF}.pg{margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}}`;
+  },
+  /* Open the report in a new tab, ready to save as PDF */
+  open(b) {
+    const w = window.open('', '_blank');
+    if (!w) { UI.toast('Allow pop-ups for this page to open the report.'); return false; }
+    w.document.open(); w.document.write(this.html(b).replace('</body>', `<script>window.addEventListener('load',function(){(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(function(){window.print()},300)})})<\/script></body>`)); w.document.close();
+    return true;
+  }
 };
 
 /* ============================================================
@@ -4919,6 +5146,7 @@ const App = {
           p.impact.costs.push({ id: nid, ref: x.id, cat: x.g, name: x.n, mode: x.m, term: x.t || (x.m === 'compute' ? 'rec' : 'one'), q: 0, q2: 0, q3: 0, r: 0, r2: 0, m: x.m === 'fte' ? 12 : 0, one: 0, rec: 0, g: 0, unit: 0, kind: x.k, life: x.life || (x.k === 'capex' ? 5 : 0), phase: x.ph || (cc ? cc.phase : 1), owner: cc ? cc.owner : 'Technology' });
           if (p.impact.costNA) delete p.impact.costNA[x.id]; this.ui = this.ui || {}; this.ui.openCat = x.g; rr(); UI.toast('Added: ' + x.n); break; }
         case 'naCost': { const na = p.impact.costNA || (p.impact.costNA = {}); if (na[d.ref]) delete na[d.ref]; else na[d.ref] = true; const x = NAV.costCatalogById(d.ref); this.ui = this.ui || {}; this.ui.openCat = x ? x.g : null; rr(); break; }
+        case 'baseDesigned': { if (RPTH.open(this.ws.baseline)) UI.toast('Report opened in a new tab. Choose “Save as PDF” in the print window.'); break; }
         case 'baseDocx': { UI.toast('Building the Word report…'); RPT.blob(this.ws.baseline).then(bl => bl.arrayBuffer()).then(buf => this.save(RPT.fname(this.ws.baseline), new Uint8Array(buf))).catch(err => { console.error(err); UI.toast('Could not build the Word report.'); }); break; }
         case 'refK': this.ui = this.ui || {}; this.ui.refK = d.v; this.render(); break;
         case 'libCat': this.ui = this.ui || {}; this.ui.libCat = d.v; this.ui.libFn = 'all'; this.render(); break;
